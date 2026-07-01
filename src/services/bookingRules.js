@@ -94,6 +94,23 @@ function validateBooking({ startAt, endAt, department }, now = new Date()) {
     return { ok: false, error: 'Cannot book a time in the past.' };
   }
 
+  // Must be within business hours on a single day (e.g. 7:00-21:00).
+  // The form already limits this; enforce it server-side too.
+  const bs = config.booking.businessStartHour;
+  const be = config.booking.businessEndHour;
+  const startMinOfDay = start.getHours() * 60 + start.getMinutes();
+  const endMinOfDay = end.getHours() * 60 + end.getMinutes();
+  if (
+    start.toDateString() !== end.toDateString() ||
+    startMinOfDay < bs * 60 ||
+    endMinOfDay > be * 60
+  ) {
+    return {
+      ok: false,
+      error: `Bookings must be within business hours (${bs}:00–${be}:00).`,
+    };
+  }
+
   // Per-department booking window
   const windowEnd = bookingWindowEnd(department, now);
   if (start > windowEnd) {

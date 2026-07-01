@@ -322,7 +322,9 @@ function shiftDay(delta) {
 // Click an empty timeline area -> set that room + date + time and search
 function startFromTimeline(roomId, startMin) {
   const slot = state.config.slotMinutes;
-  const s = Math.floor(startMin / slot) * slot;
+  // Clamp so the start never lands on/after the closing hour (keeps a valid slot)
+  let s = Math.floor(startMin / slot) * slot;
+  s = Math.max(DAY_START, Math.min(s, DAY_END - slot));
   const en = Math.min(s + 60, DAY_END);
   document.getElementById('date').value = state.date;
   document.getElementById('startHour').value = Math.floor(s / 60);
