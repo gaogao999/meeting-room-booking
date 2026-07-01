@@ -8,9 +8,12 @@ const router = express.Router();
 // List rooms
 router.get('/', (req, res) => {
   const includeInactive = req.query.all === '1';
+  // Order by location (Factory 1, 2, 3 ...) first, then by room name.
+  // Rooms without a location go last.
+  const order = 'ORDER BY location IS NULL, location, name';
   const rows = includeInactive
-    ? db.prepare('SELECT * FROM rooms ORDER BY name').all()
-    : db.prepare('SELECT * FROM rooms WHERE is_active = 1 ORDER BY name').all();
+    ? db.prepare(`SELECT * FROM rooms ${order}`).all()
+    : db.prepare(`SELECT * FROM rooms WHERE is_active = 1 ${order}`).all();
   res.json(rows);
 });
 

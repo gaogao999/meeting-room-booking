@@ -20,7 +20,9 @@ router.get('/', (req, res) => {
   const startAt = formatLocal(s);
   const endAt = formatLocal(e);
 
-  const rooms = db.prepare('SELECT * FROM rooms WHERE is_active = 1 ORDER BY name').all();
+  const rooms = db
+    .prepare('SELECT * FROM rooms WHERE is_active = 1 ORDER BY location IS NULL, location, name')
+    .all();
   // 半開区間 [start, end) の重複判定
   const overlapStmt = db.prepare(
     `SELECT * FROM bookings
