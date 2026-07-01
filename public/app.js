@@ -12,7 +12,6 @@ const PALETTE = [
 ];
 
 const state = {
-  rooms: [],
   config: { slotMinutes: 10, windowDefaultDays: 90, windowHrDays: 180, hrDepartments: [] },
   user: { name: '', department: '' },
   date: null,
@@ -47,6 +46,21 @@ function todayStr() {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+function toMin(hhmm) {
+  if (hhmm === '24:00') return 24 * 60;
+  return parseInt(hhmm.slice(0, 2), 10) * 60 + parseInt(hhmm.slice(3, 5), 10);
+}
+
+// Resolve an end time, mapping 24:00 to 00:00 of the next day
+function resolveEnd(date, end) {
+  if (end === '24:00') {
+    const d = new Date(`${date}T00:00`);
+    d.setDate(d.getDate() + 1);
+    return { date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, time: '00:00' };
+  }
+  return { date, time: end };
+}
+
 function showAlert(message, type = 'danger') {
   document.getElementById('formAlert').innerHTML =
     `<div class="alert alert-${type} alert-dismissible fade show" role="alert">${escapeHtml(
@@ -73,48 +87,6 @@ function fillTimeSelects() {
   endSel.value = '10:00';
 }
 
-// Search time selects limited to the visible window
-function fillSearchTimes() {
-  const opts = [];
-  for (let m = DAY_START; m <= DAY_END; m += state.config.slotMinutes) {
-    opts.push(`${pad(Math.floor(m / 60))}:${pad(m % 60)}`);
-  }
-  const start = document.getElementById('searchStart');
-  const end = document.getElementById('searchEnd');
-  start.innerHTML = opts
-    .filter((t) => t !== '20:00')
-    .map((t) => `<option value="${t}">${t}</option>`)
-    .join('');
-  end.innerHTML = opts.map((t) => `<option value="${t}">${t}</option>`).join('');
-  start.value = '13:00';
-  end.value = '14:00';
-}
-
-function fillRoomSelect() {
-  const roomSel = document.getElementById('roomId');
-  if (!state.rooms.length) {
-    roomSel.innerHTML = '<option value="">No rooms registered</option>';
-    return;
-  }
-  // Group rooms by location so repeated names (e.g. "Conference room 1" in
-  // both factories) stay distinguishable.
-  const groups = {};
-  for (const r of state.rooms) {
-    const loc = r.location || 'Other';
-    (groups[loc] = groups[loc] || []).push(r);
-  }
-  roomSel.innerHTML = Object.keys(groups)
-    .map(
-      (loc) =>
-        `<optgroup label="${escapeHtml(loc)}">` +
-        groups[loc]
-          .map((r) => `<option value="${r.id}">${escapeHtml(r.name)}</option>`)
-          .join('') +
-        `</optgroup>`
-    )
-    .join('');
-}
-
 function updateRuleHint() {
   const dep = document.getElementById('department').value;
   const isHr = state.config.hrDepartments.some((k) =>
@@ -126,52 +98,100 @@ function updateRuleHint() {
     `${kind}: can book up to ${days} days ahead, in ${state.config.slotMinutes}-minute increments.`;
 }
 
-// ---- Booking form ----
-function prefillForm({ room, date, start, end }) {
-  if (room) document.getElementById('roomId').value = room;
-  if (date) document.getElementById('date').value = date;
-  if (start) {
-    const s = document.getElementById('startTime');
-    if ([...s.options].some((o) => o.value === start)) s.value = start;
-  }
-  if (end) {
-    const e = document.getElementById('endTime');
-    if ([...e.options].some((o) => o.value === end)) e.value = end;
-  }
-  updateRuleHint();
-  document.getElementById('bookingForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-
-async function submitBooking(e) {
-  e.preventDefault();
+// ---- Step 1+2: find available rooms for the chosen time slot ----
+async function findRooms(preselectRoomId = null) {
   const date = document.getElementById('date').value;
   const start = document.getElementById('startTime').value;
   const end = document.getElementById('endTime').value;
+  const sel = document.getElementById('roomId');
+  const hint = document.getElementById('availHint');
+  const book = document.getElementById('bookBtn');
 
-  // 24:00 means midnight of the next day
-  let endDate = date;
-  let endTime = end;
-  if (end === '24:00') {
-    const d = new Date(`${date}T00:00`);
-    d.setDate(d.getDate() + 1);
-    endDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-    endTime = '00:00';
+  const reset = (msg) => {
+    sel.innerHTML = `<option value="">${escapeHtml(msg)}</option>`;
+    sel.disabled = true;
+    book.disabled = true;
+  };
+
+  if (!date) {
+    hint.textContent = 'Please select a date.';
+    reset('Select a time slot first');
+    return;
+  }
+  if (toMin(end) <= toMin(start)) {
+    hint.textContent = 'End time must be after start time.';
+    reset('Invalid time range');
+    return;
   }
 
+  const e = resolveEnd(date, end);
+  try {
+    const data = await api(
+      `/api/availability?start_at=${date}T${start}&end_at=${e.date}T${e.time}`
+    );
+    if (data.available.length === 0) {
+      hint.textContent = `No rooms available for ${date} ${start}–${end} (busy: ${data.busy.length}).`;
+      reset('No rooms available');
+      return;
+    }
+    // Group available rooms by location
+    const groups = {};
+    for (const r of data.available) {
+      const loc = r.location || 'Other';
+      (groups[loc] = groups[loc] || []).push(r);
+    }
+    sel.innerHTML =
+      '<option value="">Select a room</option>' +
+      Object.keys(groups)
+        .map(
+          (loc) =>
+            `<optgroup label="${escapeHtml(loc)}">` +
+            groups[loc]
+              .map((r) => `<option value="${r.id}">${escapeHtml(r.name)}</option>`)
+              .join('') +
+            '</optgroup>'
+        )
+        .join('');
+    sel.disabled = false;
+    hint.textContent = `${data.available.length} room(s) available for ${date} ${start}–${end}.`;
+    if (preselectRoomId && [...sel.options].some((o) => o.value === String(preselectRoomId))) {
+      sel.value = String(preselectRoomId);
+    }
+    book.disabled = !sel.value;
+  } catch (err) {
+    hint.textContent = err.message;
+    reset('Error');
+  }
+}
+
+// ---- Step 3: submit the booking ----
+async function submitBooking(ev) {
+  ev.preventDefault();
+  const date = document.getElementById('date').value;
+  const start = document.getElementById('startTime').value;
+  const end = document.getElementById('endTime').value;
+  const roomId = document.getElementById('roomId').value;
+  if (!roomId) {
+    showAlert('Please find and select an available room first.');
+    return;
+  }
+  const e = resolveEnd(date, end);
   const payload = {
-    room_id: document.getElementById('roomId').value,
+    room_id: roomId,
     department: document.getElementById('department').value,
     reserver: document.getElementById('reserver').value,
     purpose: document.getElementById('purpose').value,
     start_at: `${date}T${start}`,
-    end_at: `${endDate}T${endTime}`,
+    end_at: `${e.date}T${e.time}`,
   };
   try {
     await api('/api/bookings', { method: 'POST', body: JSON.stringify(payload) });
     showAlert('Reservation created.', 'success');
-    // Reflect on the schedule for the booked day
+    document.getElementById('purpose').value = '';
     document.getElementById('tlDate').value = date;
     loadTimeline();
+    // Refresh the available-room list (the booked room is now busy)
+    findRooms();
   } catch (err) {
     showAlert(err.message, 'danger');
   }
@@ -197,9 +217,9 @@ function hourLines() {
   }).join('');
 }
 
-function renderTimeline(bookingsByRoom) {
+function renderTimeline(rooms, bookingsByRoom) {
   const el = document.getElementById('timeline');
-  if (state.rooms.length === 0) {
+  if (rooms.length === 0) {
     el.innerHTML = '<div class="tl-empty-msg">No rooms registered.</div>';
     return;
   }
@@ -218,19 +238,19 @@ function renderTimeline(bookingsByRoom) {
     ''
   )}</div></div>`;
 
-  for (const room of state.rooms) {
+  for (const room of rooms) {
     const list = bookingsByRoom[room.id] || [];
     const bars = list
       .map((b) => {
         let s = minutesOfDay(b.start_at, state.date);
-        let e = minutesOfDay(b.end_at, state.date);
+        let en = minutesOfDay(b.end_at, state.date);
         if (s == null) s = DAY_START;
-        if (e == null) e = DAY_END;
+        if (en == null) en = DAY_END;
         s = Math.max(DAY_START, s);
-        e = Math.min(DAY_END, e);
-        if (e <= s) return '';
+        en = Math.min(DAY_END, en);
+        if (en <= s) return '';
         const leftPct = ((s - DAY_START) / SPAN) * 100;
-        const widthPct = ((e - s) / SPAN) * 100;
+        const widthPct = ((en - s) / SPAN) * 100;
         const color = colorFor(b.purpose || b.department || b.id);
         const label = `${b.start_at.slice(11)}-${b.end_at.slice(11)}`;
         const title = `${label} ${b.purpose || ''} / ${b.department} ${b.reserver}`;
@@ -245,9 +265,7 @@ function renderTimeline(bookingsByRoom) {
       .join('');
     const roomLabel =
       `${escapeHtml(room.name)}` +
-      (room.location
-        ? `<span class="tl-roomloc">${escapeHtml(room.location)}</span>`
-        : '');
+      (room.location ? `<span class="tl-roomloc">${escapeHtml(room.location)}</span>` : '');
     html +=
       `<div class="tl-row"><div class="tl-roomcell">${roomLabel}</div>` +
       `<div class="tl-track" data-room="${room.id}">${hourLines()}${bars}</div></div>`;
@@ -260,10 +278,13 @@ async function loadTimeline() {
   state.date = document.getElementById('tlDate').value || todayStr();
   document.getElementById('tlDateLabel').textContent = state.date;
   try {
-    const list = await api(`/api/bookings?from=${state.date}T00:00&to=${state.date}T23:59`);
+    const [rooms, list] = await Promise.all([
+      api('/api/rooms'),
+      api(`/api/bookings?from=${state.date}T00:00&to=${state.date}T23:59`),
+    ]);
     const byRoom = {};
     for (const b of list) (byRoom[b.room_id] = byRoom[b.room_id] || []).push(b);
-    renderTimeline(byRoom);
+    renderTimeline(rooms, byRoom);
   } catch (err) {
     document.getElementById('timeline').innerHTML =
       `<div class="tl-empty-msg text-danger">${escapeHtml(err.message)}</div>`;
@@ -278,50 +299,18 @@ function shiftDay(delta) {
   loadTimeline();
 }
 
-// ---- Availability search ----
-async function searchAvailability(e) {
-  e.preventDefault();
-  const date = document.getElementById('searchDate').value;
-  const start = document.getElementById('searchStart').value;
-  const end = document.getElementById('searchEnd').value;
-  const box = document.getElementById('searchResult');
-  if (!date) {
-    box.innerHTML = '<div class="text-danger">Please select a date.</div>';
-    return;
-  }
-  try {
-    const data = await api(`/api/availability?start_at=${date}T${start}&end_at=${date}T${end}`);
-    const avail = data.available
-      .map(
-        (r) =>
-          `<button type="button" class="btn btn-sm btn-success m-1" ` +
-          `data-book='${escapeHtml(JSON.stringify({ room: r.id, date, start, end }))}'>` +
-          `Book ${escapeHtml(r.name)}${
-            r.location ? ` — ${escapeHtml(r.location)}` : ''
-          }${r.capacity ? ` (${r.capacity})` : ''}</button>`
-      )
-      .join('');
-    const busy = data.busy
-      .map(
-        (x) =>
-          `<span class="badge bg-secondary m-1" title="${x.conflicts
-            .map((c) => `${c.start_at.slice(11)}-${c.end_at.slice(11)}`)
-            .join(', ')}">${escapeHtml(x.room.name)} (busy)</span>`
-      )
-      .join('');
-    box.innerHTML =
-      `<div class="mb-2">Availability for ${date} ${start}&ndash;${end}</div>` +
-      `<div><strong class="text-success">Available (${data.available.length}):</strong> ${
-        avail || '<span class="text-muted">none</span>'
-      }</div>` +
-      `<div class="mt-2"><strong class="text-muted">Busy (${data.busy.length}):</strong> ${
-        busy || '<span class="text-muted">none</span>'
-      }</div>`;
-    document.getElementById('tlDate').value = date;
-    loadTimeline();
-  } catch (err) {
-    box.innerHTML = `<div class="text-danger">${escapeHtml(err.message)}</div>`;
-  }
+// Click an empty timeline area -> set that room + date + time and search
+function startFromTimeline(roomId, startMin) {
+  const slot = state.config.slotMinutes;
+  const s = Math.floor(startMin / slot) * slot;
+  const en = Math.min(s + 60, DAY_END);
+  document.getElementById('date').value = state.date;
+  const startSel = document.getElementById('startTime');
+  const endSel = document.getElementById('endTime');
+  startSel.value = `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
+  endSel.value = `${pad(Math.floor(en / 60))}:${pad(en % 60)}`;
+  document.getElementById('bookingForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  findRooms(roomId);
 }
 
 // ---- Booking detail modal ----
@@ -347,6 +336,7 @@ async function cancelDetail() {
     await api(`/api/bookings/${state.detailBooking.id}`, { method: 'DELETE' });
     detailModal.hide();
     loadTimeline();
+    findRooms();
   } catch (err) {
     alert(err.message);
   }
@@ -356,8 +346,15 @@ async function init() {
   detailModal = new bootstrap.Modal(document.getElementById('detailModal'));
 
   document.getElementById('bookingForm').addEventListener('submit', submitBooking);
+  document.getElementById('findRoomsBtn').addEventListener('click', () => findRooms());
   document.getElementById('department').addEventListener('input', updateRuleHint);
-  document.getElementById('searchForm').addEventListener('submit', searchAvailability);
+  // Re-search when the time slot changes; selecting a room enables Book
+  ['date', 'startTime', 'endTime'].forEach((id) =>
+    document.getElementById(id).addEventListener('change', () => findRooms())
+  );
+  document.getElementById('roomId').addEventListener('change', (e) => {
+    document.getElementById('bookBtn').disabled = !e.target.value;
+  });
   document.getElementById('prevDay').addEventListener('click', () => shiftDay(-1));
   document.getElementById('nextDay').addEventListener('click', () => shiftDay(1));
   document.getElementById('today').addEventListener('click', () => {
@@ -367,13 +364,7 @@ async function init() {
   document.getElementById('tlDate').addEventListener('change', loadTimeline);
   document.getElementById('detailCancel').addEventListener('click', cancelDetail);
 
-  // Availability "Book" buttons -> prefill the form
-  document.getElementById('searchResult').addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-book]');
-    if (btn) prefillForm(JSON.parse(btn.getAttribute('data-book')));
-  });
-
-  // Timeline clicks: bar -> details, empty area -> prefill form
+  // Timeline clicks: bar -> details, empty area -> start a booking for that room/time
   document.getElementById('timeline').addEventListener('click', (e) => {
     const bar = e.target.closest('.tl-booking');
     if (bar) {
@@ -384,25 +375,14 @@ async function init() {
     if (track) {
       const rect = track.getBoundingClientRect();
       const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-      const slot = state.config.slotMinutes;
-      const minute = Math.floor((DAY_START + ratio * SPAN) / slot) * slot;
-      prefillForm({
-        room: track.getAttribute('data-room'),
-        date: state.date,
-        start: `${pad(Math.floor(minute / 60))}:${pad(minute % 60)}`,
-      });
+      startFromTimeline(track.getAttribute('data-room'), DAY_START + ratio * SPAN);
     }
   });
 
   try {
-    const [cfg, user, rooms] = await Promise.all([
-      api('/api/config'),
-      api('/api/auth/me'),
-      api('/api/rooms'),
-    ]);
+    const [cfg, user] = await Promise.all([api('/api/config'), api('/api/auth/me')]);
     state.config = cfg;
     state.user = user;
-    state.rooms = rooms;
 
     document.getElementById('currentUser').textContent = user.name
       ? `${user.name} (${user.department})`
@@ -411,13 +391,11 @@ async function init() {
     document.getElementById('reserver').value = user.name || '';
     document.getElementById('date').value = todayStr();
     document.getElementById('tlDate').value = todayStr();
-    document.getElementById('searchDate').value = todayStr();
 
-    fillRoomSelect();
     fillTimeSelects();
-    fillSearchTimes();
     updateRuleHint();
     loadTimeline();
+    findRooms();
   } catch (err) {
     showAlert(`Initialization failed: ${err.message}`);
   }

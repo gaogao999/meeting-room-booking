@@ -20,53 +20,15 @@
   </nav>
 
   <div class="container-fluid px-4 my-4">
-    <!-- Find available rooms by time -->
-    <div class="card shadow-sm mb-4">
-      <div class="card-header bg-light fw-bold">Find Available Rooms by Time</div>
-      <div class="card-body">
-        <form id="searchForm" class="row g-2 align-items-end">
-          <div class="col-auto">
-            <label class="form-label mb-1">Date</label>
-            <input type="date" class="form-control" id="searchDate" required />
-          </div>
-          <div class="col-auto">
-            <label class="form-label mb-1">Start</label>
-            <select class="form-select" id="searchStart" required></select>
-          </div>
-          <div class="col-auto">
-            <label class="form-label mb-1">End</label>
-            <select class="form-select" id="searchEnd" required></select>
-          </div>
-          <div class="col-auto">
-            <button type="submit" class="btn btn-primary">Search</button>
-          </div>
-        </form>
-        <div id="searchResult" class="mt-3"></div>
-      </div>
-    </div>
-
     <div class="row g-4">
-      <!-- New reservation form -->
+      <!-- New reservation: pick time first, then choose from available rooms -->
       <div class="col-xl-4">
         <div class="card shadow-sm">
           <div class="card-header bg-light fw-bold">New Reservation</div>
           <div class="card-body">
             <div id="formAlert"></div>
             <form id="bookingForm">
-              <div class="mb-3">
-                <label class="form-label">Room <span class="text-danger">*</span></label>
-                <select class="form-select" id="roomId" required></select>
-              </div>
-              <div class="row">
-                <div class="col-6 mb-3">
-                  <label class="form-label">Department <span class="text-danger">*</span></label>
-                  <input type="text" class="form-control" id="department" required />
-                </div>
-                <div class="col-6 mb-3">
-                  <label class="form-label">Name <span class="text-danger">*</span></label>
-                  <input type="text" class="form-control" id="reserver" required />
-                </div>
-              </div>
+              <!-- Step 1: choose date/time -->
               <div class="mb-3">
                 <label class="form-label">Date <span class="text-danger">*</span></label>
                 <input type="date" class="form-control" id="date" required />
@@ -81,11 +43,35 @@
                   <select class="form-select" id="endTime" required></select>
                 </div>
               </div>
+              <button type="button" class="btn btn-outline-primary w-100 mb-3" id="findRoomsBtn">
+                Find available rooms
+              </button>
+
+              <!-- Step 2: choose an available room -->
+              <div class="mb-3">
+                <label class="form-label">Available room <span class="text-danger">*</span></label>
+                <select class="form-select" id="roomId" required disabled>
+                  <option value="">Search a time slot first</option>
+                </select>
+                <div class="form-text" id="availHint"></div>
+              </div>
+
+              <!-- Step 3: details -->
+              <div class="row">
+                <div class="col-6 mb-3">
+                  <label class="form-label">Department <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="department" required />
+                </div>
+                <div class="col-6 mb-3">
+                  <label class="form-label">Name <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="reserver" required />
+                </div>
+              </div>
               <div class="mb-3">
                 <label class="form-label">Purpose</label>
                 <input type="text" class="form-control" id="purpose" placeholder="Optional" />
               </div>
-              <button type="submit" class="btn btn-primary w-100">Book</button>
+              <button type="submit" class="btn btn-primary w-100" id="bookBtn" disabled>Book</button>
             </form>
             <div class="form-text mt-2" id="ruleHint"></div>
           </div>
