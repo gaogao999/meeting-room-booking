@@ -1,0 +1,89 @@
+/* タイムライン（ガントチャート風スケジュール）*/
+.timeline {
+  overflow-x: auto;
+}
+.tl-grid {
+  min-width: 900px;
+}
+.tl-row {
+  display: flex;
+  border-top: 1px solid #e9ecef;
+  min-height: 52px;
+}
+.tl-row.tl-head {
+  border-top: none;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 2;
+}
+.tl-roomcell {
+  flex: 0 0 120px;
+  width: 120px;
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-right: 1px solid #dee2e6;
+  display: flex;
+  align-items: center;
+  background: #f8f9fa;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+.tl-head .tl-roomcell {
+  background: #eef2f7;
+}
+.tl-track {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 52px;
+}
+/* 時間軸の目盛り（縦線）*/
+.tl-hour {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid #f0f0f0;
+}
+.tl-head .tl-track {
+  height: 28px;
+  min-height: 28px;
+}
+.tl-hourlabel {
+  position: absolute;
+  top: 4px;
+  transform: translateX(-50%);
+  font-size: 0.72rem;
+  color: #6c757d;
+}
+/* 予約バー */
+.tl-booking {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  border-radius: 6px;
+  padding: 3px 6px;
+  color: #fff;
+  font-size: 0.72rem;
+  line-height: 1.1;
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+.tl-booking .tl-time {
+  font-weight: 700;
+  display: block;
+  white-space: nowrap;
+}
+.tl-booking .tl-purpose {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tl-empty-msg {
+  padding: 2rem;
+  text-align: center;
+  color: #6c757d;
+}

@@ -196,6 +196,20 @@ async function init() {
 
     fillRoomSelects();
     fillTimeSelects();
+
+    // スケジュール/空き検索からの遷移: クエリで会議室・日時を初期化
+    const q = new URLSearchParams(location.search);
+    if (q.get('room')) document.getElementById('roomId').value = q.get('room');
+    if (q.get('date')) document.getElementById('date').value = q.get('date');
+    if (q.get('start')) {
+      const s = document.getElementById('startTime');
+      if ([...s.options].some((o) => o.value === q.get('start'))) s.value = q.get('start');
+    }
+    if (q.get('end')) {
+      const e = document.getElementById('endTime');
+      if ([...e.options].some((o) => o.value === q.get('end'))) e.value = q.get('end');
+    }
+
     updateRuleHint();
     loadBookings();
   } catch (err) {
