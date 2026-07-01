@@ -11,7 +11,8 @@
   <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
     <div class="container-fluid px-4">
       <a class="navbar-brand" href="/">Meeting Room Booking</a>
-      <div class="navbar-nav">
+      <span class="navbar-text text-white-50 small" id="appVersion"></span>
+      <div class="navbar-nav ms-3">
         <a class="nav-link active" href="/">Booking</a>
         <a class="nav-link" href="/rooms.html">Rooms</a>
       </div>
@@ -36,11 +37,19 @@
               <div class="row">
                 <div class="col-6 mb-3">
                   <label class="form-label">Start <span class="text-danger">*</span></label>
-                  <select class="form-select" id="startTime" required></select>
+                  <div class="input-group">
+                    <select class="form-select" id="startHour" required></select>
+                    <span class="input-group-text px-2">:</span>
+                    <select class="form-select" id="startMin" required></select>
+                  </div>
                 </div>
                 <div class="col-6 mb-3">
                   <label class="form-label">End <span class="text-danger">*</span></label>
-                  <select class="form-select" id="endTime" required></select>
+                  <div class="input-group">
+                    <select class="form-select" id="endHour" required></select>
+                    <span class="input-group-text px-2">:</span>
+                    <select class="form-select" id="endMin" required></select>
+                  </div>
                 </div>
               </div>
               <button type="button" class="btn btn-outline-primary w-100 mb-3" id="findRoomsBtn">
@@ -95,9 +104,8 @@
             <div id="timeline" class="timeline"></div>
           </div>
         </div>
-        <p class="text-muted small mt-2 mb-0">
-          Shown range is 8:00&ndash;20:00. Click a bar for details, or click an empty area to
-          start a booking for that room and time.
+        <p class="text-muted small mt-2 mb-0" id="tlRangeNote">
+          Click a bar for details, or click an empty area to start a booking for that room and time.
         </p>
       </div>
     </div>

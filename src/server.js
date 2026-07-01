@@ -25,10 +25,13 @@ app.use('/api/bookings', require('./routes/bookings'));
 app.use('/api/availability', require('./routes/availability'));
 app.use('/api/pdf', require('./routes/pdf'));
 
-// 設定情報（フロントで利用する予約ルールなど）
+// Settings used by the frontend (booking rules, business hours, version)
 app.get('/api/config', (req, res) => {
   res.json({
+    version: config.version,
     slotMinutes: config.booking.slotMinutes,
+    businessStartHour: config.booking.businessStartHour,
+    businessEndHour: config.booking.businessEndHour,
     windowDefaultDays: config.booking.windowDefaultDays,
     windowHrDays: config.booking.windowHrDays,
     hrDepartments: config.booking.hrDepartments,

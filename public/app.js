@@ -1,9 +1,9 @@
 'use strict';
 
-// Visible timeline window (minutes): 8:00-20:00
-const DAY_START = 8 * 60;
-const DAY_END = 20 * 60;
-const SPAN = DAY_END - DAY_START;
+// Visible timeline window (minutes). Set from business hours in init().
+let DAY_START = 7 * 60;
+let DAY_END = 21 * 60;
+let SPAN = DAY_END - DAY_START;
 
 // Color palette for booking bars (cycled by a key)
 const PALETTE = [
@@ -12,7 +12,14 @@ const PALETTE = [
 ];
 
 const state = {
-  config: { slotMinutes: 10, windowDefaultDays: 90, windowHrDays: 180, hrDepartments: [] },
+  config: {
+    slotMinutes: 10,
+    businessStartHour: 7,
+    businessEndHour: 21,
+    windowDefaultDays: 90,
+    windowHrDays: 180,
+    hrDepartments: [],
+  },
   user: { name: '', department: '' },
   date: null,
   detailBooking: null,
@@ -46,19 +53,12 @@ function todayStr() {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-function toMin(hhmm) {
-  if (hhmm === '24:00') return 24 * 60;
-  return parseInt(hhmm.slice(0, 2), 10) * 60 + parseInt(hhmm.slice(3, 5), 10);
+// Read the split hour/minute selects
+function timeStr(hourId, minId) {
+  return `${pad(+document.getElementById(hourId).value)}:${pad(+document.getElementById(minId).value)}`;
 }
-
-// Resolve an end time, mapping 24:00 to 00:00 of the next day
-function resolveEnd(date, end) {
-  if (end === '24:00') {
-    const d = new Date(`${date}T00:00`);
-    d.setDate(d.getDate() + 1);
-    return { date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, time: '00:00' };
-  }
-  return { date, time: end };
+function timeMin(hourId, minId) {
+  return +document.getElementById(hourId).value * 60 + +document.getElementById(minId).value;
 }
 
 function showAlert(message, type = 'danger') {
@@ -68,23 +68,48 @@ function showAlert(message, type = 'danger') {
     )}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`;
 }
 
-// Build time options in slot increments across the whole day
-function timeOptions(slot) {
-  const opts = [];
-  for (let m = 0; m < 24 * 60; m += slot) {
-    opts.push(`${pad(Math.floor(m / 60))}:${pad(m % 60)}`);
-  }
-  return opts;
+// ---- Time controls (hour + minute, limited to business hours) ----
+function minuteOptions() {
+  const out = [];
+  for (let m = 0; m < 60; m += state.config.slotMinutes) out.push(m);
+  return out;
 }
 
-function fillTimeSelects() {
-  const opts = timeOptions(state.config.slotMinutes);
-  const startSel = document.getElementById('startTime');
-  const endSel = document.getElementById('endTime');
-  startSel.innerHTML = opts.map((t) => `<option value="${t}">${t}</option>`).join('');
-  endSel.innerHTML = [...opts, '24:00'].map((t) => `<option value="${t}">${t}</option>`).join('');
-  startSel.value = '09:00';
-  endSel.value = '10:00';
+// End minute is limited to :00 when the end hour is the closing hour
+function syncEndMinutes() {
+  const endMin = document.getElementById('endMin');
+  const prev = +endMin.value;
+  const atClose = +document.getElementById('endHour').value >= state.config.businessEndHour;
+  const mins = atClose ? [0] : minuteOptions();
+  endMin.innerHTML = mins.map((m) => `<option value="${m}">${pad(m)}</option>`).join('');
+  endMin.value = mins.includes(prev) ? prev : mins[0];
+}
+
+function fillTimeControls() {
+  const bs = state.config.businessStartHour;
+  const be = state.config.businessEndHour;
+  const startHour = document.getElementById('startHour');
+  const endHour = document.getElementById('endHour');
+  const startMin = document.getElementById('startMin');
+
+  const startHours = [];
+  for (let h = bs; h < be; h++) startHours.push(h); // start cannot be at closing hour
+  const endHours = [];
+  for (let h = bs; h <= be; h++) endHours.push(h);
+  startHour.innerHTML = startHours.map((h) => `<option value="${h}">${pad(h)}</option>`).join('');
+  endHour.innerHTML = endHours.map((h) => `<option value="${h}">${pad(h)}</option>`).join('');
+
+  const minOpts = minuteOptions()
+    .map((m) => `<option value="${m}">${pad(m)}</option>`)
+    .join('');
+  startMin.innerHTML = minOpts;
+
+  // Defaults: 09:00-10:00 (clamped to business hours)
+  startHour.value = Math.min(Math.max(9, bs), be - 1);
+  startMin.value = 0;
+  endHour.value = Math.min(Math.max(10, bs + 1), be);
+  syncEndMinutes();
+  document.getElementById('endMin').value = 0;
 }
 
 function updateRuleHint() {
@@ -101,8 +126,8 @@ function updateRuleHint() {
 // ---- Step 1+2: find available rooms for the chosen time slot ----
 async function findRooms(preselectRoomId = null) {
   const date = document.getElementById('date').value;
-  const start = document.getElementById('startTime').value;
-  const end = document.getElementById('endTime').value;
+  const startStr = timeStr('startHour', 'startMin');
+  const endStr = timeStr('endHour', 'endMin');
   const sel = document.getElementById('roomId');
   const hint = document.getElementById('availHint');
   const book = document.getElementById('bookBtn');
@@ -118,19 +143,18 @@ async function findRooms(preselectRoomId = null) {
     reset('Select a time slot first');
     return;
   }
-  if (toMin(end) <= toMin(start)) {
+  if (timeMin('endHour', 'endMin') <= timeMin('startHour', 'startMin')) {
     hint.textContent = 'End time must be after start time.';
     reset('Invalid time range');
     return;
   }
 
-  const e = resolveEnd(date, end);
   try {
     const data = await api(
-      `/api/availability?start_at=${date}T${start}&end_at=${e.date}T${e.time}`
+      `/api/availability?start_at=${date}T${startStr}&end_at=${date}T${endStr}`
     );
     if (data.available.length === 0) {
-      hint.textContent = `No rooms available for ${date} ${start}–${end} (busy: ${data.busy.length}).`;
+      hint.textContent = `No rooms available for ${date} ${startStr}–${endStr} (busy: ${data.busy.length}).`;
       reset('No rooms available');
       return;
     }
@@ -153,7 +177,7 @@ async function findRooms(preselectRoomId = null) {
         )
         .join('');
     sel.disabled = false;
-    hint.textContent = `${data.available.length} room(s) available for ${date} ${start}–${end}.`;
+    hint.textContent = `${data.available.length} room(s) available for ${date} ${startStr}–${endStr}.`;
     if (preselectRoomId && [...sel.options].some((o) => o.value === String(preselectRoomId))) {
       sel.value = String(preselectRoomId);
     }
@@ -168,21 +192,18 @@ async function findRooms(preselectRoomId = null) {
 async function submitBooking(ev) {
   ev.preventDefault();
   const date = document.getElementById('date').value;
-  const start = document.getElementById('startTime').value;
-  const end = document.getElementById('endTime').value;
   const roomId = document.getElementById('roomId').value;
   if (!roomId) {
     showAlert('Please find and select an available room first.');
     return;
   }
-  const e = resolveEnd(date, end);
   const payload = {
     room_id: roomId,
     department: document.getElementById('department').value,
     reserver: document.getElementById('reserver').value,
     purpose: document.getElementById('purpose').value,
-    start_at: `${date}T${start}`,
-    end_at: `${e.date}T${e.time}`,
+    start_at: `${date}T${timeStr('startHour', 'startMin')}`,
+    end_at: `${date}T${timeStr('endHour', 'endMin')}`,
   };
   try {
     await api('/api/bookings', { method: 'POST', body: JSON.stringify(payload) });
@@ -190,8 +211,7 @@ async function submitBooking(ev) {
     document.getElementById('purpose').value = '';
     document.getElementById('tlDate').value = date;
     loadTimeline();
-    // Refresh the available-room list (the booked room is now busy)
-    findRooms();
+    findRooms(); // refresh availability (booked room now busy)
   } catch (err) {
     showAlert(err.message, 'danger');
   }
@@ -305,10 +325,11 @@ function startFromTimeline(roomId, startMin) {
   const s = Math.floor(startMin / slot) * slot;
   const en = Math.min(s + 60, DAY_END);
   document.getElementById('date').value = state.date;
-  const startSel = document.getElementById('startTime');
-  const endSel = document.getElementById('endTime');
-  startSel.value = `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
-  endSel.value = `${pad(Math.floor(en / 60))}:${pad(en % 60)}`;
+  document.getElementById('startHour').value = Math.floor(s / 60);
+  document.getElementById('startMin').value = s % 60;
+  document.getElementById('endHour').value = Math.floor(en / 60);
+  syncEndMinutes();
+  document.getElementById('endMin').value = en % 60;
   document.getElementById('bookingForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
   findRooms(roomId);
 }
@@ -348,8 +369,12 @@ async function init() {
   document.getElementById('bookingForm').addEventListener('submit', submitBooking);
   document.getElementById('findRoomsBtn').addEventListener('click', () => findRooms());
   document.getElementById('department').addEventListener('input', updateRuleHint);
-  // Re-search when the time slot changes; selecting a room enables Book
-  ['date', 'startTime', 'endTime'].forEach((id) =>
+  // Re-search when the time slot changes
+  document.getElementById('endHour').addEventListener('change', () => {
+    syncEndMinutes();
+    findRooms();
+  });
+  ['date', 'startHour', 'startMin', 'endMin'].forEach((id) =>
     document.getElementById(id).addEventListener('change', () => findRooms())
   );
   document.getElementById('roomId').addEventListener('change', (e) => {
@@ -383,7 +408,14 @@ async function init() {
     const [cfg, user] = await Promise.all([api('/api/config'), api('/api/auth/me')]);
     state.config = cfg;
     state.user = user;
+    DAY_START = cfg.businessStartHour * 60;
+    DAY_END = cfg.businessEndHour * 60;
+    SPAN = DAY_END - DAY_START;
 
+    document.getElementById('appVersion').textContent = cfg.version ? `v${cfg.version}` : '';
+    document.getElementById('tlRangeNote').textContent =
+      `Shown range is ${cfg.businessStartHour}:00–${cfg.businessEndHour}:00. ` +
+      'Click a bar for details, or click an empty area to start a booking for that room and time.';
     document.getElementById('currentUser').textContent = user.name
       ? `${user.name} (${user.department})`
       : '';
@@ -392,7 +424,7 @@ async function init() {
     document.getElementById('date').value = todayStr();
     document.getElementById('tlDate').value = todayStr();
 
-    fillTimeSelects();
+    fillTimeControls();
     updateRuleHint();
     loadTimeline();
     findRooms();
