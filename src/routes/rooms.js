@@ -5,7 +5,7 @@ const db = require('../db');
 
 const router = express.Router();
 
-// 会議室一覧
+// List rooms
 router.get('/', (req, res) => {
   const includeInactive = req.query.all === '1';
   const rows = includeInactive
@@ -14,22 +14,22 @@ router.get('/', (req, res) => {
   res.json(rows);
 });
 
-// 会議室 1件
+// Get one room
 router.get('/:id', (req, res) => {
   const room = db.prepare('SELECT * FROM rooms WHERE id = ?').get(req.params.id);
-  if (!room) return res.status(404).json({ error: '会議室が見つかりません。' });
+  if (!room) return res.status(404).json({ error: 'Room not found.' });
   res.json(room);
 });
 
-// 会議室の登録
+// Create a room
 router.post('/', (req, res) => {
   const { name, location, capacity, description } = req.body || {};
   if (!name || !String(name).trim()) {
-    return res.status(400).json({ error: '会議室名は必須です。' });
+    return res.status(400).json({ error: 'Room name is required.' });
   }
   const cap = capacity === undefined || capacity === '' ? null : parseInt(capacity, 10);
   if (cap !== null && (!Number.isFinite(cap) || cap < 0)) {
-    return res.status(400).json({ error: '定員は0以上の整数で指定してください。' });
+    return res.status(400).json({ error: 'Capacity must be a non-negative integer.' });
   }
   try {
     const info = db
@@ -41,22 +41,22 @@ router.post('/', (req, res) => {
     res.status(201).json(room);
   } catch (err) {
     if (String(err.message).includes('UNIQUE')) {
-      return res.status(409).json({ error: '同名の会議室が既に存在します。' });
+      return res.status(409).json({ error: 'A room with the same name already exists.' });
     }
     throw err;
   }
 });
 
-// 会議室の更新
+// Update a room
 router.put('/:id', (req, res) => {
   const room = db.prepare('SELECT * FROM rooms WHERE id = ?').get(req.params.id);
-  if (!room) return res.status(404).json({ error: '会議室が見つかりません。' });
+  if (!room) return res.status(404).json({ error: 'Room not found.' });
 
   const { name, location, capacity, description, is_active } = req.body || {};
   const cap =
     capacity === undefined || capacity === '' ? room.capacity : parseInt(capacity, 10);
   if (cap !== null && (!Number.isFinite(cap) || cap < 0)) {
-    return res.status(400).json({ error: '定員は0以上の整数で指定してください。' });
+    return res.status(400).json({ error: 'Capacity must be a non-negative integer.' });
   }
   try {
     db.prepare(
@@ -74,16 +74,16 @@ router.put('/:id', (req, res) => {
     res.json(updated);
   } catch (err) {
     if (String(err.message).includes('UNIQUE')) {
-      return res.status(409).json({ error: '同名の会議室が既に存在します。' });
+      return res.status(409).json({ error: 'A room with the same name already exists.' });
     }
     throw err;
   }
 });
 
-// 会議室の削除（論理削除）
+// Delete a room (soft delete)
 router.delete('/:id', (req, res) => {
   const room = db.prepare('SELECT * FROM rooms WHERE id = ?').get(req.params.id);
-  if (!room) return res.status(404).json({ error: '会議室が見つかりません。' });
+  if (!room) return res.status(404).json({ error: 'Room not found.' });
   db.prepare('UPDATE rooms SET is_active = 0 WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
 });

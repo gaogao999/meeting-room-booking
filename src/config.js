@@ -30,8 +30,8 @@ const config = {
     mode: process.env.AUTH_MODE || 'mock',
     checkloginUrl: process.env.CHECKLOGIN_URL || '',
     mockUser: {
-      name: process.env.MOCK_USER_NAME || '開発 ユーザー',
-      department: process.env.MOCK_USER_DEPARTMENT || '総務部',
+      name: process.env.MOCK_USER_NAME || 'Dev User',
+      department: process.env.MOCK_USER_DEPARTMENT || 'General Affairs',
     },
   },
 
@@ -41,7 +41,7 @@ const config = {
     windowHrDays: toInt(process.env.BOOKING_WINDOW_HR_DAYS, 180),
     hrDepartments: toList(process.env.HR_DEPARTMENTS).length
       ? toList(process.env.HR_DEPARTMENTS)
-      : ['人事部', 'HR', '人事', '採用', '人材開発'],
+      : ['HR', 'Human Resources', 'Recruiting', 'People', 'Talent'],
   },
 
   erp: {

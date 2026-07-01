@@ -43,13 +43,13 @@ app.use('/api', (req, res) => res.status(404).json({ error: 'Not Found' }));
 app.use((err, req, res, next) => {
   console.error(err);
   const status = err.status || 500;
-  res.status(status).json({ error: err.message || 'サーバーエラーが発生しました。' });
+  res.status(status).json({ error: err.message || 'Internal server error.' });
 });
 
 if (require.main === module) {
   app.listen(config.port, () => {
-    console.log(`会議室予約システムを起動しました: http://localhost:${config.port}`);
-    console.log(`認証モード: ${config.auth.mode}`);
+    console.log(`Meeting Room Booking started: http://localhost:${config.port}`);
+    console.log(`Auth mode: ${config.auth.mode}`);
   });
 }
 

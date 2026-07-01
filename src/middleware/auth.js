@@ -33,7 +33,7 @@ async function authenticate(req, res, next) {
       return next();
     }
 
-    return res.status(401).json({ error: '認証が必要です。' });
+    return res.status(401).json({ error: 'Authentication required.' });
   } catch (err) {
     return next(err);
   }

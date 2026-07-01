@@ -26,8 +26,8 @@ function showAlert(message, type = 'danger') {
 function resetForm() {
   document.getElementById('roomForm').reset();
   document.getElementById('roomId').value = '';
-  document.getElementById('formTitle').textContent = '会議室の登録';
-  document.getElementById('submitBtn').textContent = '登録する';
+  document.getElementById('formTitle').textContent = 'Add Room';
+  document.getElementById('submitBtn').textContent = 'Add';
   document.getElementById('cancelEdit').classList.add('d-none');
 }
 
@@ -37,23 +37,23 @@ async function loadRooms() {
     const rooms = await api('/api/rooms?all=1');
     if (rooms.length === 0) {
       tbody.innerHTML =
-        '<tr><td colspan="5" class="text-center text-muted py-4">会議室は未登録です</td></tr>';
+        '<tr><td colspan="5" class="text-center text-muted py-4">No rooms registered</td></tr>';
       return;
     }
     tbody.innerHTML = rooms
       .map(
         (r) => `
       <tr class="${r.is_active ? '' : 'table-secondary'}">
-        <td>${escapeHtml(r.name)} ${r.is_active ? '' : '<span class="badge bg-secondary">停止中</span>'}</td>
+        <td>${escapeHtml(r.name)} ${r.is_active ? '' : '<span class="badge bg-secondary">disabled</span>'}</td>
         <td>${escapeHtml(r.location || '')}</td>
-        <td>${r.capacity == null ? '' : r.capacity + ' 名'}</td>
+        <td>${r.capacity == null ? '' : r.capacity}</td>
         <td>${escapeHtml(r.description || '')}</td>
         <td class="text-nowrap">
-          <button class="btn btn-sm btn-outline-primary" data-edit='${JSON.stringify(r)}'>編集</button>
+          <button class="btn btn-sm btn-outline-primary" data-edit='${JSON.stringify(r)}'>Edit</button>
           ${
             r.is_active
-              ? `<button class="btn btn-sm btn-outline-danger" data-delete="${r.id}">停止</button>`
-              : `<button class="btn btn-sm btn-outline-success" data-activate="${r.id}">再開</button>`
+              ? `<button class="btn btn-sm btn-outline-danger" data-delete="${r.id}">Disable</button>`
+              : `<button class="btn btn-sm btn-outline-success" data-activate="${r.id}">Enable</button>`
           }
         </td>
       </tr>`
@@ -70,8 +70,8 @@ function editRoom(room) {
   document.getElementById('location').value = room.location || '';
   document.getElementById('capacity').value = room.capacity == null ? '' : room.capacity;
   document.getElementById('description').value = room.description || '';
-  document.getElementById('formTitle').textContent = `会議室の編集: ${room.name}`;
-  document.getElementById('submitBtn').textContent = '更新する';
+  document.getElementById('formTitle').textContent = `Edit Room: ${room.name}`;
+  document.getElementById('submitBtn').textContent = 'Update';
   document.getElementById('cancelEdit').classList.remove('d-none');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -88,10 +88,10 @@ async function submitRoom(e) {
   try {
     if (id) {
       await api(`/api/rooms/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
-      showAlert('会議室を更新しました。', 'success');
+      showAlert('Room updated.', 'success');
     } else {
       await api('/api/rooms', { method: 'POST', body: JSON.stringify(payload) });
-      showAlert('会議室を登録しました。', 'success');
+      showAlert('Room added.', 'success');
     }
     resetForm();
     loadRooms();

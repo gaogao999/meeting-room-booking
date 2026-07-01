@@ -12,10 +12,10 @@ router.get('/', (req, res) => {
   const s = parseLocal(req.query.start_at);
   const e = parseLocal(req.query.end_at);
   if (!s || !e) {
-    return res.status(400).json({ error: '開始日時と終了日時を指定してください。' });
+    return res.status(400).json({ error: 'Please provide start and end date/time.' });
   }
   if (e <= s) {
-    return res.status(400).json({ error: '終了日時は開始日時より後にしてください。' });
+    return res.status(400).json({ error: 'End time must be after start time.' });
   }
   const startAt = formatLocal(s);
   const endAt = formatLocal(e);

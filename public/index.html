@@ -1,105 +1,135 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>会議室予約システム</title>
-  <link
-    href="/vendor/bootstrap.min.css"
-    rel="stylesheet"
-  />
+  <title>Meeting Room Booking</title>
+  <link href="/vendor/bootstrap.min.css" rel="stylesheet" />
+  <link href="/timeline.css" rel="stylesheet" />
 </head>
 <body>
   <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-    <div class="container">
-      <a class="navbar-brand" href="/">会議室予約システム</a>
+    <div class="container-fluid px-4">
+      <a class="navbar-brand" href="/">Meeting Room Booking</a>
       <div class="navbar-nav">
-        <a class="nav-link active" href="/">予約</a>
-        <a class="nav-link" href="/timeline.html">スケジュール</a>
-        <a class="nav-link" href="/rooms.html">会議室管理</a>
+        <a class="nav-link active" href="/">Booking</a>
+        <a class="nav-link" href="/rooms.html">Rooms</a>
       </div>
       <span class="navbar-text text-white ms-auto" id="currentUser"></span>
     </div>
   </nav>
 
-  <div class="container my-4">
+  <div class="container-fluid px-4 my-4">
+    <!-- Find available rooms by time -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-light fw-bold">Find Available Rooms by Time</div>
+      <div class="card-body">
+        <form id="searchForm" class="row g-2 align-items-end">
+          <div class="col-auto">
+            <label class="form-label mb-1">Date</label>
+            <input type="date" class="form-control" id="searchDate" required />
+          </div>
+          <div class="col-auto">
+            <label class="form-label mb-1">Start</label>
+            <select class="form-select" id="searchStart" required></select>
+          </div>
+          <div class="col-auto">
+            <label class="form-label mb-1">End</label>
+            <select class="form-select" id="searchEnd" required></select>
+          </div>
+          <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Search</button>
+          </div>
+        </form>
+        <div id="searchResult" class="mt-3"></div>
+      </div>
+    </div>
+
     <div class="row g-4">
-      <!-- 予約フォーム -->
-      <div class="col-lg-5">
+      <!-- New reservation form -->
+      <div class="col-xl-4">
         <div class="card shadow-sm">
-          <div class="card-header bg-light fw-bold">新規予約</div>
+          <div class="card-header bg-light fw-bold">New Reservation</div>
           <div class="card-body">
             <div id="formAlert"></div>
             <form id="bookingForm">
               <div class="mb-3">
-                <label class="form-label">会議室 <span class="text-danger">*</span></label>
+                <label class="form-label">Room <span class="text-danger">*</span></label>
                 <select class="form-select" id="roomId" required></select>
               </div>
               <div class="row">
                 <div class="col-6 mb-3">
-                  <label class="form-label">部署名 <span class="text-danger">*</span></label>
+                  <label class="form-label">Department <span class="text-danger">*</span></label>
                   <input type="text" class="form-control" id="department" required />
                 </div>
                 <div class="col-6 mb-3">
-                  <label class="form-label">氏名 <span class="text-danger">*</span></label>
+                  <label class="form-label">Name <span class="text-danger">*</span></label>
                   <input type="text" class="form-control" id="reserver" required />
                 </div>
               </div>
               <div class="mb-3">
-                <label class="form-label">日付 <span class="text-danger">*</span></label>
+                <label class="form-label">Date <span class="text-danger">*</span></label>
                 <input type="date" class="form-control" id="date" required />
               </div>
               <div class="row">
                 <div class="col-6 mb-3">
-                  <label class="form-label">開始時刻 <span class="text-danger">*</span></label>
+                  <label class="form-label">Start <span class="text-danger">*</span></label>
                   <select class="form-select" id="startTime" required></select>
                 </div>
                 <div class="col-6 mb-3">
-                  <label class="form-label">終了時刻 <span class="text-danger">*</span></label>
+                  <label class="form-label">End <span class="text-danger">*</span></label>
                   <select class="form-select" id="endTime" required></select>
                 </div>
               </div>
               <div class="mb-3">
-                <label class="form-label">用件</label>
-                <input type="text" class="form-control" id="purpose" placeholder="任意" />
+                <label class="form-label">Purpose</label>
+                <input type="text" class="form-control" id="purpose" placeholder="Optional" />
               </div>
-              <button type="submit" class="btn btn-primary w-100">予約する</button>
+              <button type="submit" class="btn btn-primary w-100">Book</button>
             </form>
             <div class="form-text mt-2" id="ruleHint"></div>
           </div>
         </div>
       </div>
 
-      <!-- 予約一覧 -->
-      <div class="col-lg-7">
+      <!-- Schedule (timeline) -->
+      <div class="col-xl-8">
         <div class="card shadow-sm">
-          <div class="card-header bg-light d-flex align-items-center">
-            <span class="fw-bold">予約一覧</span>
-            <div class="ms-auto d-flex gap-2">
-              <select class="form-select form-select-sm" id="filterRoom" style="width:auto">
-                <option value="">すべての会議室</option>
-              </select>
-              <input type="date" class="form-control form-control-sm" id="filterDate" style="width:auto" />
+          <div class="card-header bg-light d-flex align-items-center flex-wrap gap-2">
+            <span class="fw-bold">Schedule</span>
+            <div class="btn-group btn-group-sm ms-3">
+              <button class="btn btn-outline-secondary" id="prevDay">&lt;</button>
+              <button class="btn btn-outline-secondary" id="today">Today</button>
+              <button class="btn btn-outline-secondary" id="nextDay">&gt;</button>
             </div>
+            <input type="date" class="form-control form-control-sm ms-2" id="tlDate" style="width:auto" />
+            <span class="ms-auto text-muted small" id="tlDateLabel"></span>
           </div>
           <div class="card-body p-0">
-            <div class="table-responsive">
-              <table class="table table-hover mb-0 align-middle">
-                <thead class="table-light">
-                  <tr>
-                    <th>会議室</th>
-                    <th>日時</th>
-                    <th>部署 / 氏名</th>
-                    <th>用件</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody id="bookingList">
-                  <tr><td colspan="5" class="text-center text-muted py-4">読み込み中...</td></tr>
-                </tbody>
-              </table>
-            </div>
+            <div id="timeline" class="timeline"></div>
           </div>
+        </div>
+        <p class="text-muted small mt-2 mb-0">
+          Shown range is 8:00&ndash;20:00. Click a bar for details, or click an empty area to
+          start a booking for that room and time.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Booking detail modal -->
+  <div class="modal fade" id="detailModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Booking Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="detailBody"></div>
+        <div class="modal-footer">
+          <a class="btn btn-outline-secondary" id="detailPdf" target="_blank">Download PDF</a>
+          <button type="button" class="btn btn-danger" id="detailCancel">Cancel Booking</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
         </div>
       </div>
     </div>

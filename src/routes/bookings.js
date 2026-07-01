@@ -6,8 +6,8 @@ const { validateBooking } = require('../services/bookingRules');
 
 const router = express.Router();
 
-// 指定した時間帯に、対象会議室で重複する予約があるか調べる。
-// [start, end) の半開区間として扱う（隣接は重複としない）。
+// Find a confirmed booking that overlaps [startAt, endAt) for the room.
+// Half-open interval: adjacent bookings (end == next start) do NOT overlap.
 function findOverlap(roomId, startAt, endAt, excludeId = null) {
   const params = [roomId, endAt, startAt];
   let sql = `
@@ -23,7 +23,51 @@ function findOverlap(roomId, startAt, endAt, excludeId = null) {
   return db.prepare(sql).get(...params);
 }
 
-// 予約一覧（フィルタ: room_id, from, to）
+// Atomically check for overlap and insert. Wrapped in an IMMEDIATE transaction
+// so the write lock is taken before the overlap check — this prevents a race
+// where two concurrent requests both pass the check and double-book (even across
+// multiple processes sharing the SQLite file). Returns the overlapping row if any.
+const insertIfFree = db.transaction((data) => {
+  const overlap = findOverlap(data.roomId, data.startAt, data.endAt);
+  if (overlap) return { overlap };
+  const info = db
+    .prepare(
+      `INSERT INTO bookings
+        (room_id, department, reserver, purpose, start_at, end_at, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+    .run(
+      data.roomId,
+      data.department,
+      data.reserver,
+      data.purpose,
+      data.startAt,
+      data.endAt,
+      data.createdBy
+    );
+  return { id: info.lastInsertRowid };
+});
+
+const updateIfFree = db.transaction((data) => {
+  const overlap = findOverlap(data.roomId, data.startAt, data.endAt, data.id);
+  if (overlap) return { overlap };
+  db.prepare(
+    `UPDATE bookings
+       SET room_id = ?, department = ?, reserver = ?, purpose = ?, start_at = ?, end_at = ?
+     WHERE id = ?`
+  ).run(
+    data.roomId,
+    data.department,
+    data.reserver,
+    data.purpose,
+    data.startAt,
+    data.endAt,
+    data.id
+  );
+  return { id: data.id };
+});
+
+// List bookings (filters: room_id, from, to)
 router.get('/', (req, res) => {
   const { room_id, from, to } = req.query;
   const clauses = [];
@@ -52,7 +96,7 @@ router.get('/', (req, res) => {
   res.json(rows);
 });
 
-// 予約 1件
+// Get one booking
 router.get('/:id', (req, res) => {
   const row = db
     .prepare(
@@ -61,29 +105,28 @@ router.get('/:id', (req, res) => {
        WHERE b.id = ?`
     )
     .get(req.params.id);
-  if (!row) return res.status(404).json({ error: '予約が見つかりません。' });
+  if (!row) return res.status(404).json({ error: 'Booking not found.' });
   res.json(row);
 });
 
-// 予約の作成
+// Create a booking
 router.post('/', (req, res) => {
   const body = req.body || {};
   const roomId = parseInt(body.room_id, 10);
-  // 部署名・名前は予約者本人の情報を既定とし、指定があれば上書きする
   const department = (body.department || req.user?.department || '').trim();
   const reserver = (body.reserver || req.user?.name || '').trim();
   const purpose = body.purpose ? String(body.purpose).trim() : null;
 
   if (!Number.isFinite(roomId)) {
-    return res.status(400).json({ error: '会議室を指定してください。' });
+    return res.status(400).json({ error: 'Please select a room.' });
   }
   if (!reserver) {
-    return res.status(400).json({ error: '予約者名は必須です。' });
+    return res.status(400).json({ error: 'Reserver name is required.' });
   }
 
   const room = db.prepare('SELECT * FROM rooms WHERE id = ? AND is_active = 1').get(roomId);
   if (!room) {
-    return res.status(404).json({ error: '会議室が見つからないか、利用できません。' });
+    return res.status(404).json({ error: 'Room not found or unavailable.' });
   }
 
   const check = validateBooking({
@@ -96,21 +139,21 @@ router.post('/', (req, res) => {
   }
   const { startAt, endAt } = check.normalized;
 
-  const overlap = findOverlap(roomId, startAt, endAt);
-  if (overlap) {
+  const result = insertIfFree({
+    roomId,
+    department,
+    reserver,
+    purpose,
+    startAt,
+    endAt,
+    createdBy: req.user?.name || null,
+  });
+  if (result.overlap) {
     return res.status(409).json({
-      error: 'その時間帯は既に予約されています。',
-      conflict: { start_at: overlap.start_at, end_at: overlap.end_at },
+      error: 'This time slot is already booked.',
+      conflict: { start_at: result.overlap.start_at, end_at: result.overlap.end_at },
     });
   }
-
-  const info = db
-    .prepare(
-      `INSERT INTO bookings
-        (room_id, department, reserver, purpose, start_at, end_at, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-    )
-    .run(roomId, department, reserver, purpose, startAt, endAt, req.user?.name || null);
 
   const created = db
     .prepare(
@@ -118,14 +161,14 @@ router.post('/', (req, res) => {
        FROM bookings b JOIN rooms r ON r.id = b.room_id
        WHERE b.id = ?`
     )
-    .get(info.lastInsertRowid);
+    .get(result.id);
   res.status(201).json(created);
 });
 
-// 予約の更新
+// Update a booking
 router.put('/:id', (req, res) => {
   const existing = db.prepare('SELECT * FROM bookings WHERE id = ?').get(req.params.id);
-  if (!existing) return res.status(404).json({ error: '予約が見つかりません。' });
+  if (!existing) return res.status(404).json({ error: 'Booking not found.' });
 
   const body = req.body || {};
   const roomId = body.room_id !== undefined ? parseInt(body.room_id, 10) : existing.room_id;
@@ -137,30 +180,32 @@ router.put('/:id', (req, res) => {
   const startAt = body.start_at !== undefined ? body.start_at : existing.start_at;
   const endAt = body.end_at !== undefined ? body.end_at : existing.end_at;
 
-  if (!reserver) return res.status(400).json({ error: '予約者名は必須です。' });
+  if (!reserver) return res.status(400).json({ error: 'Reserver name is required.' });
 
   const room = db.prepare('SELECT * FROM rooms WHERE id = ? AND is_active = 1').get(roomId);
   if (!room) {
-    return res.status(404).json({ error: '会議室が見つからないか、利用できません。' });
+    return res.status(404).json({ error: 'Room not found or unavailable.' });
   }
 
   const check = validateBooking({ startAt, endAt, department });
   if (!check.ok) return res.status(400).json({ error: check.error });
   const norm = check.normalized;
 
-  const overlap = findOverlap(roomId, norm.startAt, norm.endAt, existing.id);
-  if (overlap) {
+  const result = updateIfFree({
+    id: existing.id,
+    roomId,
+    department,
+    reserver,
+    purpose,
+    startAt: norm.startAt,
+    endAt: norm.endAt,
+  });
+  if (result.overlap) {
     return res.status(409).json({
-      error: 'その時間帯は既に予約されています。',
-      conflict: { start_at: overlap.start_at, end_at: overlap.end_at },
+      error: 'This time slot is already booked.',
+      conflict: { start_at: result.overlap.start_at, end_at: result.overlap.end_at },
     });
   }
-
-  db.prepare(
-    `UPDATE bookings
-       SET room_id = ?, department = ?, reserver = ?, purpose = ?, start_at = ?, end_at = ?
-     WHERE id = ?`
-  ).run(roomId, department, reserver, purpose, norm.startAt, norm.endAt, existing.id);
 
   const updated = db
     .prepare(
@@ -172,10 +217,10 @@ router.put('/:id', (req, res) => {
   res.json(updated);
 });
 
-// 予約の取消
+// Cancel a booking
 router.delete('/:id', (req, res) => {
   const existing = db.prepare('SELECT * FROM bookings WHERE id = ?').get(req.params.id);
-  if (!existing) return res.status(404).json({ error: '予約が見つかりません。' });
+  if (!existing) return res.status(404).json({ error: 'Booking not found.' });
   db.prepare('DELETE FROM bookings WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
 });

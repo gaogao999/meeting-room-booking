@@ -67,34 +67,34 @@ function validateBooking({ startAt, endAt, department }, now = new Date()) {
   const end = parseLocal(endAt);
   const slot = config.booking.slotMinutes;
 
-  if (!start) return { ok: false, error: '開始日時の形式が正しくありません。' };
-  if (!end) return { ok: false, error: '終了日時の形式が正しくありません。' };
+  if (!start) return { ok: false, error: 'Invalid start date/time format.' };
+  if (!end) return { ok: false, error: 'Invalid end date/time format.' };
   if (!department || !String(department).trim()) {
-    return { ok: false, error: '部署名は必須です。' };
+    return { ok: false, error: 'Department is required.' };
   }
 
   if (end <= start) {
-    return { ok: false, error: '終了日時は開始日時より後にしてください。' };
+    return { ok: false, error: 'End time must be after start time.' };
   }
 
-  // 10分（SLOT_MINUTES）単位であること
+  // Must be aligned to the slot (10 minutes / SLOT_MINUTES)
   if (start.getMinutes() % slot !== 0 || start.getSeconds() !== 0) {
-    return { ok: false, error: `開始時刻は${slot}分単位で指定してください。` };
+    return { ok: false, error: `Start time must be in ${slot}-minute increments.` };
   }
   if (end.getMinutes() % slot !== 0 || end.getSeconds() !== 0) {
-    return { ok: false, error: `終了時刻は${slot}分単位で指定してください。` };
+    return { ok: false, error: `End time must be in ${slot}-minute increments.` };
   }
   const durationMin = (end - start) / 60000;
   if (durationMin % slot !== 0) {
-    return { ok: false, error: `予約時間は${slot}分単位で指定してください。` };
+    return { ok: false, error: `Duration must be in ${slot}-minute increments.` };
   }
 
-  // 過去の予約は不可（開始が現在より前）
+  // No bookings in the past (start before now)
   if (start < now) {
-    return { ok: false, error: '過去の日時は予約できません。' };
+    return { ok: false, error: 'Cannot book a time in the past.' };
   }
 
-  // 部門ごとの予約可能期間
+  // Per-department booking window
   const windowEnd = bookingWindowEnd(department, now);
   if (start > windowEnd) {
     const days = isHrDepartment(department)
@@ -102,9 +102,9 @@ function validateBooking({ startAt, endAt, department }, now = new Date()) {
       : config.booking.windowDefaultDays;
     return {
       ok: false,
-      error: `この部署は現在から${days}日先まで予約できます（${formatLocal(
+      error: `This department can book up to ${days} days ahead (until ${formatLocal(
         windowEnd
-      ).slice(0, 10)} まで）。`,
+      ).slice(0, 10)}).`,
     };
   }
 

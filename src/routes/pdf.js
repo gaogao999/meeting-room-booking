@@ -20,7 +20,7 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (file.mimetype === 'application/pdf') return cb(null, true);
-    cb(new Error('PDF ファイルのみアップロードできます。'));
+    cb(new Error('Only PDF files can be uploaded.'));
   },
 });
 
@@ -39,7 +39,7 @@ router.get('/booking/:id', async (req, res, next) => {
          WHERE b.id = ?`
       )
       .get(req.params.id);
-    if (!b) return res.status(404).json({ error: '予約が見つかりません。' });
+    if (!b) return res.status(404).json({ error: 'Booking not found.' });
 
     const pdf = await PDFDocument.create();
     const page = pdf.addPage([595, 842]); // A4
@@ -88,7 +88,7 @@ router.get('/booking/:id', async (req, res, next) => {
 
 // PDF アップロードの受け口（後続処理の連携ポイント）
 router.post('/upload', upload.single('file'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'ファイルがありません。' });
+  if (!req.file) return res.status(400).json({ error: 'No file provided.' });
   res.json({
     ok: true,
     filename: req.file.originalname,

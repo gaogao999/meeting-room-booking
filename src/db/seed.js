@@ -1,20 +1,20 @@
 'use strict';
 
-// サンプルデータを投入する。
-// 実行: npm run seed
+// Seed sample data.
+// Run: npm run seed
 const fs = require('fs');
 const path = require('path');
 const db = require('./index');
 
-// テーブルが無ければ作成しておく
+// Create tables if they do not exist yet
 const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
 db.exec(schema);
 
 const rooms = [
-  { name: '大会議室 A', location: '本社 3F', capacity: 20, description: 'プロジェクター・ホワイトボード完備' },
-  { name: '中会議室 B', location: '本社 3F', capacity: 10, description: 'テレビ会議システムあり' },
-  { name: '小会議室 C', location: '本社 4F', capacity: 4, description: '少人数向け' },
-  { name: '応接室', location: '本社 1F', capacity: 6, description: '来客対応用' },
+  { name: 'Conference Room A', location: 'HQ 3F', capacity: 20, description: 'Projector and whiteboard' },
+  { name: 'Meeting Room B', location: 'HQ 3F', capacity: 10, description: 'Video conferencing system' },
+  { name: 'Small Room C', location: 'HQ 4F', capacity: 4, description: 'For small groups' },
+  { name: 'Reception Room', location: 'HQ 1F', capacity: 6, description: 'For visitors' },
 ];
 
 const insert = db.prepare(
@@ -26,4 +26,4 @@ const tx = db.transaction((list) => {
 });
 tx(rooms);
 
-console.log(`会議室のサンプルデータを投入しました（${rooms.length}件）。`);
+console.log(`Seeded sample rooms (${rooms.length}).`);
