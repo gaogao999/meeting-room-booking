@@ -367,7 +367,6 @@ async function init() {
   detailModal = new bootstrap.Modal(document.getElementById('detailModal'));
 
   document.getElementById('bookingForm').addEventListener('submit', submitBooking);
-  document.getElementById('findRoomsBtn').addEventListener('click', () => findRooms());
   document.getElementById('department').addEventListener('input', updateRuleHint);
   // Re-search when the time slot changes
   document.getElementById('endHour').addEventListener('change', () => {
