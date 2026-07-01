@@ -1,6 +1,7 @@
 /* タイムライン（ガントチャート風スケジュール）*/
 .timeline {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch; /* smooth momentum scrolling on iOS */
 }
 .tl-grid {
   min-width: 900px;
@@ -93,4 +94,31 @@
   padding: 2rem;
   text-align: center;
   color: #6c757d;
+}
+
+/* Mobile: compact the schedule so more of the day fits and text stays legible */
+@media (max-width: 576px) {
+  .tl-grid {
+    min-width: 680px;
+  }
+  .tl-roomcell {
+    flex: 0 0 92px;
+    width: 92px;
+    padding: 6px 6px;
+    font-size: 0.72rem;
+  }
+  .tl-roomloc {
+    font-size: 0.62rem;
+  }
+  .tl-row,
+  .tl-track {
+    min-height: 42px;
+  }
+  .tl-hourlabel {
+    font-size: 0.6rem;
+  }
+  .tl-booking {
+    font-size: 0.6rem;
+    padding: 2px 4px;
+  }
 }
