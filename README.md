@@ -43,6 +43,26 @@ npm run dev
 
 ブラウザで http://localhost:3000 を開きます。
 
+## デプロイ（Render / 無料プラン）
+
+本アプリはバックエンド（Express + SQLite）を含むため、静的ホスティング（GitHub Pages 等）
+では動作しません。Node アプリを実行できる Render などの PaaS を利用します。
+
+同梱の `render.yaml`（Blueprint）で無料プランにデプロイできます。
+
+1. https://dashboard.render.com/ → **New** → **Blueprint**
+2. このリポジトリ（`gaogao999/meeting-room-booking`）を選択
+3. `render.yaml` が読み込まれ Web Service が作成される
+4. 数分後 `https://<サービス名>.onrender.com` で公開される
+
+無料プランの注意:
+
+- 一定時間アクセスが無いとスリープし、次アクセス時に復帰まで数十秒かかります。
+- ディスクは一時的で、再デプロイ/復帰で SQLite の予約データはリセットされ、
+  起動時に `seed` でサンプル会議室が再投入されます。
+- 予約データを永続化する場合は Render の Disk（有料）を利用し、`render.yaml` の
+  「永続ディスク」コメントを有効化して `DB_PATH` を `/data/booking.db` に変更します。
+
 ## 環境変数（.env）
 
 主要な設定は `.env.example` を参照してください。

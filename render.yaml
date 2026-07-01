@@ -1,0 +1,51 @@
+# Render Blueprint（無料プラン構成）
+# 使い方:
+#   1. https://dashboard.render.com/ → New → Blueprint
+#   2. このリポジトリ (gaogao999/meeting-room-booking) を選択
+#   3. render.yaml が読み込まれ、Web Service が作成される
+#   4. デプロイ完了後 https://<サービス名>.onrender.com で公開される
+#
+# 注意（無料プラン）:
+#   - 一定時間アクセスが無いとスリープし、次アクセス時に数十秒かけて復帰します。
+#   - ディスクは一時的です。再デプロイ/スリープ復帰で SQLite の予約データはリセットされ、
+#     起動時に buildCommand の seed でサンプル会議室が再投入されます。
+#   - 予約データを永続化したい場合は下部「永続ディスク」のコメントを有効化してください
+#     （Render の Disk は有料プランが必要です）。
+services:
+  - type: web
+    name: meeting-room-booking
+    runtime: node
+    plan: free
+    # DB を初期化しサンプル会議室を投入してから起動する
+    buildCommand: npm install && npm run seed
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NODE_ENV
+        value: production
+      # 開発同様、モック認証で起動（本番の /checklogin 連携は後日）
+      - key: AUTH_MODE
+        value: mock
+      - key: MOCK_USER_NAME
+        value: 山田 太郎
+      - key: MOCK_USER_DEPARTMENT
+        value: 総務部
+      - key: DB_PATH
+        value: ./data/booking.db
+      - key: SLOT_MINUTES
+        value: "10"
+      - key: BOOKING_WINDOW_DEFAULT_DAYS
+        value: "90"
+      - key: BOOKING_WINDOW_HR_DAYS
+        value: "180"
+      - key: HR_DEPARTMENTS
+        value: 人事部,HR,人事,採用,人材開発
+    # ---- 永続ディスク（予約データを保持したい場合・有料プラン）----
+    # plan を free 以外にした上で、以下を有効化し DB_PATH を /data/booking.db に変更する
+    # disk:
+    #   name: data
+    #   mountPath: /data
+    #   sizeGB: 1
