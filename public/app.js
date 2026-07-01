@@ -346,7 +346,6 @@ function openDetail(b) {
       <dt class="col-4">Name</dt><dd class="col-8">${escapeHtml(b.reserver)}</dd>
       <dt class="col-4">Purpose</dt><dd class="col-8">${escapeHtml(b.purpose || '-')}</dd>
     </dl>`;
-  document.getElementById('detailPdf').href = `/api/pdf/booking/${b.id}`;
   detailModal.show();
 }
 
