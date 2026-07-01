@@ -41,7 +41,7 @@ router.post('/', (req, res) => {
     res.status(201).json(room);
   } catch (err) {
     if (String(err.message).includes('UNIQUE')) {
-      return res.status(409).json({ error: 'A room with the same name already exists.' });
+      return res.status(409).json({ error: 'A room with the same name already exists in this location.' });
     }
     throw err;
   }
@@ -74,7 +74,7 @@ router.put('/:id', (req, res) => {
     res.json(updated);
   } catch (err) {
     if (String(err.message).includes('UNIQUE')) {
-      return res.status(409).json({ error: 'A room with the same name already exists.' });
+      return res.status(409).json({ error: 'A room with the same name already exists in this location.' });
     }
     throw err;
   }

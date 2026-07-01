@@ -11,10 +11,17 @@ const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
 db.exec(schema);
 
 const rooms = [
-  { name: 'Conference Room A', location: 'HQ 3F', capacity: 20, description: 'Projector and whiteboard' },
-  { name: 'Meeting Room B', location: 'HQ 3F', capacity: 10, description: 'Video conferencing system' },
-  { name: 'Small Room C', location: 'HQ 4F', capacity: 4, description: 'For small groups' },
-  { name: 'Reception Room', location: 'HQ 1F', capacity: 6, description: 'For visitors' },
+  // Factory 1
+  { name: 'Conference room 1', location: 'Factory 1', capacity: null, description: null },
+  { name: 'Conference room 2', location: 'Factory 1', capacity: null, description: null },
+  { name: 'Meeting space 1', location: 'Factory 1', capacity: null, description: null },
+  { name: 'Meeting space 2', location: 'Factory 1', capacity: null, description: null },
+  { name: 'Meeting space 3', location: 'Factory 1', capacity: null, description: null },
+  // Factory 2
+  { name: 'Conference room 1', location: 'Factory 2', capacity: null, description: null },
+  { name: 'Meeting room 1', location: 'Factory 2', capacity: null, description: null },
+  { name: 'Meeting room 2', location: 'Factory 2', capacity: null, description: null },
+  { name: 'Meeting room 3', location: 'Factory 2', capacity: null, description: null },
 ];
 
 const insert = db.prepare(

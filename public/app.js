@@ -92,9 +92,27 @@ function fillSearchTimes() {
 
 function fillRoomSelect() {
   const roomSel = document.getElementById('roomId');
-  roomSel.innerHTML = state.rooms.length
-    ? state.rooms.map((r) => `<option value="${r.id}">${escapeHtml(r.name)}</option>`).join('')
-    : '<option value="">No rooms registered</option>';
+  if (!state.rooms.length) {
+    roomSel.innerHTML = '<option value="">No rooms registered</option>';
+    return;
+  }
+  // Group rooms by location so repeated names (e.g. "Conference room 1" in
+  // both factories) stay distinguishable.
+  const groups = {};
+  for (const r of state.rooms) {
+    const loc = r.location || 'Other';
+    (groups[loc] = groups[loc] || []).push(r);
+  }
+  roomSel.innerHTML = Object.keys(groups)
+    .map(
+      (loc) =>
+        `<optgroup label="${escapeHtml(loc)}">` +
+        groups[loc]
+          .map((r) => `<option value="${r.id}">${escapeHtml(r.name)}</option>`)
+          .join('') +
+        `</optgroup>`
+    )
+    .join('');
 }
 
 function updateRuleHint() {
@@ -225,8 +243,13 @@ function renderTimeline(bookingsByRoom) {
         );
       })
       .join('');
+    const roomLabel =
+      `${escapeHtml(room.name)}` +
+      (room.location
+        ? `<span class="tl-roomloc">${escapeHtml(room.location)}</span>`
+        : '');
     html +=
-      `<div class="tl-row"><div class="tl-roomcell">${escapeHtml(room.name)}</div>` +
+      `<div class="tl-row"><div class="tl-roomcell">${roomLabel}</div>` +
       `<div class="tl-track" data-room="${room.id}">${hourLines()}${bars}</div></div>`;
   }
   html += '</div>';
@@ -273,7 +296,9 @@ async function searchAvailability(e) {
         (r) =>
           `<button type="button" class="btn btn-sm btn-success m-1" ` +
           `data-book='${escapeHtml(JSON.stringify({ room: r.id, date, start, end }))}'>` +
-          `Book ${escapeHtml(r.name)}${r.capacity ? ` (${r.capacity})` : ''}</button>`
+          `Book ${escapeHtml(r.name)}${
+            r.location ? ` — ${escapeHtml(r.location)}` : ''
+          }${r.capacity ? ` (${r.capacity})` : ''}</button>`
       )
       .join('');
     const busy = data.busy

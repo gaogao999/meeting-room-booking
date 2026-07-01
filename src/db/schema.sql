@@ -1,12 +1,15 @@
 -- 会議室
 CREATE TABLE IF NOT EXISTS rooms (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  name        TEXT    NOT NULL UNIQUE,
+  name        TEXT    NOT NULL,
   location    TEXT,
   capacity    INTEGER,
   description TEXT,
   is_active   INTEGER NOT NULL DEFAULT 1,
-  created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+  created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+  -- A room name is unique within a location (e.g. "Conference room 1"
+  -- can exist in both Factory 1 and Factory 2).
+  UNIQUE (name, location)
 );
 
 -- 予約

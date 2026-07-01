@@ -18,18 +18,25 @@
   z-index: 2;
 }
 .tl-roomcell {
-  flex: 0 0 120px;
-  width: 120px;
+  flex: 0 0 140px;
+  width: 140px;
   padding: 8px 10px;
   font-size: 0.85rem;
   font-weight: 600;
   border-right: 1px solid #dee2e6;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  justify-content: center;
   background: #f8f9fa;
   position: sticky;
   left: 0;
   z-index: 1;
+}
+.tl-roomloc {
+  display: block;
+  font-weight: 400;
+  font-size: 0.72rem;
+  color: #6c757d;
 }
 .tl-head .tl-roomcell {
   background: #eef2f7;
