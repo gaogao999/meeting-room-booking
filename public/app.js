@@ -247,9 +247,12 @@ function renderTimeline(rooms, bookingsByRoom) {
   const headHours = [];
   for (let m = DAY_START; m <= DAY_END; m += 60) {
     const leftPct = ((m - DAY_START) / SPAN) * 100;
+    // Keep the first/last labels inside the track so they don't overflow and
+    // trigger a horizontal scrollbar.
+    const tx = m === DAY_END ? 'translateX(-100%)' : m === DAY_START ? 'translateX(0)' : 'translateX(-50%)';
     headHours.push(
       `<div class="tl-hour" style="left:${leftPct}%"></div>` +
-        `<div class="tl-hourlabel" style="left:${leftPct}%">${pad(m / 60)}:00</div>`
+        `<div class="tl-hourlabel" style="left:${leftPct}%;transform:${tx}">${pad(m / 60)}:00</div>`
     );
   }
 

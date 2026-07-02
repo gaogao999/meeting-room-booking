@@ -4,7 +4,10 @@
   -webkit-overflow-scrolling: touch; /* smooth momentum scrolling on iOS */
 }
 .tl-grid {
-  min-width: 900px;
+  /* Fill the available width on desktop so the whole day fits without
+     horizontal scrolling. On small screens the media query below sets a
+     larger min-width so it becomes scrollable with legible bars. */
+  min-width: 100%;
 }
 .tl-row {
   display: flex;
