@@ -231,7 +231,10 @@ function colorFor(key) {
 }
 
 function hourLines() {
-  return Array.from({ length: (DAY_END - DAY_START) / 60 + 1 }, (_, i) => {
+  // Draw a gridline at the start of each hour column, but NOT at 100%:
+  // a 1px border at the right edge would overflow and cause a scrollbar.
+  const n = (DAY_END - DAY_START) / 60;
+  return Array.from({ length: n }, (_, i) => {
     const leftPct = ((i * 60) / SPAN) * 100;
     return `<div class="tl-hour" style="left:${leftPct}%"></div>`;
   }).join('');
@@ -250,9 +253,10 @@ function renderTimeline(rooms, bookingsByRoom) {
     // Keep the first/last labels inside the track so they don't overflow and
     // trigger a horizontal scrollbar.
     const tx = m === DAY_END ? 'translateX(-100%)' : m === DAY_START ? 'translateX(0)' : 'translateX(-50%)';
+    // Skip the gridline at 100% so it doesn't overflow and cause a scrollbar.
+    const line = m < DAY_END ? `<div class="tl-hour" style="left:${leftPct}%"></div>` : '';
     headHours.push(
-      `<div class="tl-hour" style="left:${leftPct}%"></div>` +
-        `<div class="tl-hourlabel" style="left:${leftPct}%;transform:${tx}">${pad(m / 60)}:00</div>`
+      line + `<div class="tl-hourlabel" style="left:${leftPct}%;transform:${tx}">${pad(m / 60)}:00</div>`
     );
   }
 
