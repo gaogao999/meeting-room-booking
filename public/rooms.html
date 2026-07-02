@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rooms - Meeting Room Booking</title>
+  <link href="/vendor/bootstrap.min.css" rel="stylesheet" />
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container-fluid px-2 px-md-4">
+      <a class="navbar-brand" href="/">Meeting Room Booking</a>
+      <div class="navbar-nav me-auto ms-3">
+        <a class="nav-link" href="/">Booking</a>
+        <a class="nav-link active" href="/rooms.html">Rooms</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container my-4">
+    <div class="row g-4">
+      <div class="col-lg-4">
+        <div class="card shadow-sm">
+          <div class="card-header bg-light fw-bold" id="formTitle">Add Room</div>
+          <div class="card-body">
+            <div id="formAlert"></div>
+            <form id="roomForm">
+              <input type="hidden" id="roomId" />
+              <div class="mb-3">
+                <label class="form-label">Room name <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="name" required />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Location</label>
+                <input type="text" class="form-control" id="location" placeholder="e.g. HQ 3F" />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Capacity</label>
+                <input type="number" class="form-control" id="capacity" min="0" />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Description</label>
+                <textarea class="form-control" id="description" rows="2"></textarea>
+              </div>
+              <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-grow-1" id="submitBtn">Add</button>
+                <button type="button" class="btn btn-outline-secondary d-none" id="cancelEdit">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-8">
+        <div class="card shadow-sm">
+          <div class="card-header bg-light fw-bold">Registered Rooms</div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th>Room name</th>
+                    <th>Location</th>
+                    <th>Capacity</th>
+                    <th>Description</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="roomList">
+                  <tr><td colspan="5" class="text-center text-muted py-4">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/vendor/bootstrap.bundle.min.js"></script>
+  <script src="/rooms.js"></script>
+</body>
+</html>

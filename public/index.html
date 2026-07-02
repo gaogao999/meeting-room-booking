@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meeting Room Booking</title>
+  <link href="/vendor/bootstrap.min.css" rel="stylesheet" />
+  <link href="/timeline.css" rel="stylesheet" />
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container-fluid px-2 px-md-4">
+      <a class="navbar-brand" href="/">Meeting Room Booking</a>
+      <span class="navbar-text text-white-50 small" id="appVersion"></span>
+      <div class="navbar-nav ms-3">
+        <a class="nav-link active" href="/">Booking</a>
+        <a class="nav-link" href="/rooms.html">Rooms</a>
+      </div>
+      <span class="navbar-text text-white ms-auto" id="currentUser"></span>
+    </div>
+  </nav>
+
+  <div class="container-fluid px-2 px-md-4 my-4">
+    <div class="row g-4">
+      <!-- New reservation: pick time first, then choose from available rooms -->
+      <div class="col-xl-4">
+        <div class="card shadow-sm">
+          <div class="card-header bg-light fw-bold">New Reservation</div>
+          <div class="card-body">
+            <div id="formAlert"></div>
+            <form id="bookingForm">
+              <!-- Step 1: choose date/time -->
+              <div class="mb-3">
+                <label class="form-label">Date <span class="text-danger">*</span></label>
+                <input type="date" class="form-control" id="date" required />
+              </div>
+              <div class="row">
+                <div class="col-6 mb-3">
+                  <label class="form-label">Start <span class="text-danger">*</span></label>
+                  <div class="input-group">
+                    <select class="form-select" id="startHour" required></select>
+                    <span class="input-group-text px-2">:</span>
+                    <select class="form-select" id="startMin" required></select>
+                  </div>
+                </div>
+                <div class="col-6 mb-3">
+                  <label class="form-label">End <span class="text-danger">*</span></label>
+                  <div class="input-group">
+                    <select class="form-select" id="endHour" required></select>
+                    <span class="input-group-text px-2">:</span>
+                    <select class="form-select" id="endMin" required></select>
+                  </div>
+                </div>
+              </div>
+              <!-- Step 2: choose from the rooms available for that time -->
+              <div class="mb-3">
+                <label class="form-label">Available room <span class="text-danger">*</span></label>
+                <select class="form-select" id="roomId" required disabled>
+                  <option value="">Select a date and time</option>
+                </select>
+                <div class="form-text" id="availHint"></div>
+              </div>
+
+              <!-- Step 3: details -->
+              <div class="row">
+                <div class="col-6 mb-3">
+                  <label class="form-label">Department <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="department" required />
+                </div>
+                <div class="col-6 mb-3">
+                  <label class="form-label">Name <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="reserver" required />
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Purpose</label>
+                <input type="text" class="form-control" id="purpose" placeholder="Optional" />
+              </div>
+              <button type="submit" class="btn btn-primary w-100" id="bookBtn" disabled>Book</button>
+            </form>
+            <div class="form-text mt-2" id="ruleHint"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Schedule (timeline) -->
+      <div class="col-xl-8">
+        <div class="card shadow-sm">
+          <div class="card-header bg-light d-flex align-items-center flex-wrap gap-2">
+            <span class="fw-bold">Schedule</span>
+            <div class="btn-group btn-group-sm ms-3">
+              <button class="btn btn-outline-secondary" id="prevDay">&lt;</button>
+              <button class="btn btn-outline-secondary" id="today">Today</button>
+              <button class="btn btn-outline-secondary" id="nextDay">&gt;</button>
+            </div>
+            <input type="date" class="form-control form-control-sm ms-2" id="tlDate" style="width:auto" />
+            <span class="ms-auto text-muted small" id="tlDateLabel"></span>
+          </div>
+          <div class="card-body p-0">
+            <div id="timeline" class="timeline"></div>
+          </div>
+        </div>
+        <p class="text-muted small mt-2 mb-0" id="tlRangeNote">
+          Click a bar for details, or click an empty area to start a booking for that room and time.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Booking detail modal -->
+  <div class="modal fade" id="detailModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Booking Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="detailBody"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-danger" id="detailCancel">Cancel Booking</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/vendor/bootstrap.bundle.min.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
