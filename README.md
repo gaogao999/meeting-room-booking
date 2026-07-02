@@ -34,7 +34,6 @@ visible on a timeline.
 - PDF: pdf-lib + multer (a booking-confirmation PDF route is included on the backend;
   currently not linked from the UI)
 - Auth: reuses the existing `/checklogin`; mock auth during development
-- ERP integration: mssql (SELECT only, scaffold, disabled by default)
 - Secrets: all managed via `.env`
 
 ## Setup
@@ -88,7 +87,6 @@ exist in both factories.
 | `BOOKING_WINDOW_DEFAULT_DAYS` | Booking window for general departments | 90 |
 | `BOOKING_WINDOW_HR_DAYS` | Booking window for HR departments | 180 |
 | `HR_DEPARTMENTS` | Department names treated as HR (partial match, comma-separated) | HR,Human Resources,Recruiting,People,Talent |
-| `ERP_ENABLED` | Enable ERP integration | false |
 
 ## Authentication
 
@@ -160,7 +158,6 @@ src/
     pdf.js                /api/pdf (confirmation PDF / upload)
   services/
     bookingRules.js       Booking rules (slot, business hours, dept windows, validation)
-    erp.js                ERP integration (mssql, SELECT only) scaffold
 public/
   index.html / app.js     Booking page (form + schedule + availability filtering)
   rooms.html / rooms.js   Rooms page (room management)
@@ -174,4 +171,3 @@ public/
   so Japanese text cannot be rendered as-is (non-encodable characters are replaced safely).
   To output Japanese, embed a Japanese TTF via fontkit. This feature is not currently
   invoked from the UI.
-- The ERP integration (`src/services/erp.js`) is a SELECT-only scaffold, disabled by default.

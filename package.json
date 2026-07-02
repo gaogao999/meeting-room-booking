@@ -20,8 +20,5 @@
     "express": "^4.19.2",
     "multer": "^2.0.0",
     "pdf-lib": "^1.17.1"
-  },
-  "optionalDependencies": {
-    "mssql": "^11.0.1"
   }
 }

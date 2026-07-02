@@ -50,16 +50,6 @@ const config = {
       ? toList(process.env.HR_DEPARTMENTS)
       : ['HR', 'Human Resources', 'Recruiting', 'People', 'Talent'],
   },
-
-  erp: {
-    enabled: toBool(process.env.ERP_ENABLED, false),
-    server: process.env.ERP_DB_SERVER || '',
-    port: toInt(process.env.ERP_DB_PORT, 1433),
-    database: process.env.ERP_DB_DATABASE || '',
-    user: process.env.ERP_DB_USER || '',
-    password: process.env.ERP_DB_PASSWORD || '',
-    encrypt: toBool(process.env.ERP_DB_ENCRYPT, true),
-  },
 };
 
 module.exports = config;
