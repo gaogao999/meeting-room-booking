@@ -31,8 +31,6 @@ visible on a timeline.
 - Node.js (>= 18, v20 recommended) / Express
 - Frontend: HTML + Bootstrap 5 (vendored under `public/vendor/`, no CDN dependency)
 - Database: SQLite (better-sqlite3)
-- PDF: pdf-lib + multer (a booking-confirmation PDF route is included on the backend;
-  currently not linked from the UI)
 - Auth: reuses the existing `/checklogin`; mock auth during development
 - Secrets: all managed via `.env`
 
@@ -118,8 +116,6 @@ exist in both factories.
 | POST | `/api/bookings` | Create a booking |
 | PUT | `/api/bookings/:id` | Update a booking |
 | DELETE | `/api/bookings/:id` | Cancel a booking |
-| GET | `/api/pdf/booking/:id` | Booking confirmation PDF (not used by the UI) |
-| POST | `/api/pdf/upload` | PDF upload endpoint (integration hook) |
 
 ## Deployment (Render / free plan)
 
@@ -155,7 +151,6 @@ src/
     rooms.js              /api/rooms
     bookings.js           /api/bookings (overlap-prevention transaction)
     availability.js       /api/availability (availability search)
-    pdf.js                /api/pdf (confirmation PDF / upload)
   services/
     bookingRules.js       Booking rules (slot, business hours, dept windows, validation)
 public/
@@ -167,7 +162,7 @@ public/
 
 ## Notes
 
-- The confirmation PDF (`/api/pdf/booking/:id`) uses pdf-lib's standard font (Helvetica),
-  so Japanese text cannot be rendered as-is (non-encodable characters are replaced safely).
-  To output Japanese, embed a Japanese TTF via fontkit. This feature is not currently
-  invoked from the UI.
+- Minimal footprint for easy IT review: runtime dependencies are only `express`,
+  `dotenv` and `better-sqlite3`. No external services or outbound network calls are
+  required at runtime, and all frontend assets (Bootstrap) are vendored locally
+  (Bootstrap is a devDependency used only to refresh those vendored files).
