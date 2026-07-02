@@ -1,164 +1,177 @@
-# 会議室予約システム（Meeting Room Booking）
+# Meeting Room Booking
 
-会社の会議室を登録し、予約するための Web アプリケーションです。
-日時を選ぶとその時間に空いている会議室だけが選べ、全社の予約状況をタイムラインで確認できます。
+A web app for registering and booking company meeting rooms. Pick a date and time
+and only the rooms free for that slot are offered; the whole company's schedule is
+visible on a timeline.
 
-- 現在のバージョン: **v1.1.0**
-- 画面 UI は英語表記です。
+- Current version: **v1.1.0**
+- The UI is in English.
 
-## 主な機能
+## Features
 
-- **会議室の登録・管理**（`Rooms` 画面）: 会議室名・場所・定員・説明を登録し、停止/再開ができます。
-- **予約フロー**（`Booking` 画面）: 日付・開始/終了（時と分を分けて選択）を指定すると、
-  **その時間に空いている会議室だけ**が候補に出ます。会議室を選び、部署名・氏名（ログインユーザーから自動入力）・
-  目的を入力して予約します。予約は **10 分単位**で、**部署名・氏名が記録**されます。
-- **スケジュール（タイムライン）**: 会議室（行）× 時間軸（07:00–21:00）で当日の予約をガントチャート風に表示。
-  日付切替、バークリックで詳細（キャンセル可）、空き部分クリックでその会議室・時間の予約開始。
-- **予約可能期間（部門別）**:
-  - **HR 系部門**: 半年後（既定 180 日）まで予約可能
-  - **その他部門**: 3 か月後（既定 90 日）まで予約可能
-- **重複防止**: 同一会議室の時間帯重複を防止（トランザクションで同時予約も防止）。
-- **営業時間**: 予約・表示は営業時間（既定 07:00–21:00）内に限定（サーバー側でも検証）。
+- **Room management** (`Rooms` page): register rooms with name, location, capacity and
+  description; disable/enable them.
+- **Booking flow** (`Booking` page): choose a date and start/end time (hour and minute
+  as separate selects). Only the rooms **available for that slot** are shown. Pick a room,
+  then enter department and name (auto-filled from the logged-in user) and an optional
+  purpose. Bookings are in **10-minute increments** and **record the department and name**.
+- **Schedule (timeline)**: rooms (rows) × time axis (07:00–21:00) showing the day's
+  bookings as a Gantt-style chart. Switch days, click a bar for details (with cancel), or
+  click an empty area to start a booking for that room and time.
+- **Per-department booking window**:
+  - **HR departments**: up to 6 months ahead (default 180 days)
+  - **Other departments**: up to 3 months ahead (default 90 days)
+- **Overlap prevention**: no double-booking of the same room; a transaction also prevents
+  races from concurrent requests.
+- **Business hours**: bookings and the schedule are limited to business hours
+  (default 07:00–21:00), enforced on the server as well.
 
-## 技術スタック
+## Tech stack
 
-- Node.js（v18 以上、推奨 v20）/ Express
-- フロントエンド: HTML + Bootstrap 5（`public/vendor/` に同梱、CDN 非依存）
-- DB: SQLite（better-sqlite3）
-- PDF: pdf-lib + multer（バックエンドに予約確認書 PDF 生成のルートを同梱。現在 UI からは未使用）
-- 認証: 既存 `/checklogin` を流用（開発中はモック認証）
-- ERP 連携: mssql（SELECT のみ、雛形のみ・既定は無効）
-- 機密情報: すべて `.env` で管理
+- Node.js (>= 18, v20 recommended) / Express
+- Frontend: HTML + Bootstrap 5 (vendored under `public/vendor/`, no CDN dependency)
+- Database: SQLite (better-sqlite3)
+- PDF: pdf-lib + multer (a booking-confirmation PDF route is included on the backend;
+  currently not linked from the UI)
+- Auth: reuses the existing `/checklogin`; mock auth during development
+- ERP integration: mssql (SELECT only, scaffold, disabled by default)
+- Secrets: all managed via `.env`
 
-## セットアップ
+## Setup
 
 ```bash
-# 依存関係のインストール
+# Install dependencies
 npm install
 
-# 環境変数ファイルを用意
+# Create the env file
 cp .env.example .env
 
-# 起動（初回起動時、会議室が空なら既定の会議室を自動投入します）
+# Start (on first run, the default rooms are auto-seeded if the table is empty)
 npm start
 
-# 開発時（ファイル変更で自動再起動）
+# Development (auto-restart on file changes)
 npm run dev
 ```
 
-ブラウザで http://localhost:3000 を開きます。
+Open http://localhost:3000 in your browser.
 
-> 会議室は**起動時に自動シード**されるため、通常 `npm run seed` は不要です。
-> 明示的に投入したい場合のみ `npm run seed`、スキーマだけ作る場合は `npm run init-db` を使います。
+> Rooms are **auto-seeded on startup**, so `npm run seed` is usually not needed.
+> Use `npm run seed` to seed explicitly, or `npm run init-db` to create the schema only.
 
-## 既定の会議室
+## Default rooms
 
-初回起動時（`rooms` テーブルが空のとき）に以下が自動投入されます。
-一覧は **工場順（Factory 1 → 2 …）→ 会議室名順**で表示されます。
+On first start (when the `rooms` table is empty) the following are inserted.
+The list is ordered by **location (Factory 1 → 2 …) then room name**.
 
-| 場所 | 会議室 |
+| Location | Rooms |
 | --- | --- |
 | Factory 1 | Conference room 1 / Conference room 2 / Meeting space 1 / Meeting space 2 / Meeting space 3 |
 | Factory 2 | Conference room 1 / Meeting room 1 / Meeting room 2 / Meeting room 3 |
 
-会議室名は**場所ごとに一意**（`UNIQUE(name, location)`）のため、両工場に同名の部屋を登録できます。
+Room names are **unique per location** (`UNIQUE(name, location)`), so the same name can
+exist in both factories.
 
-## 環境変数（.env）
+## Environment variables (.env)
 
-| 変数 | 説明 | 既定 |
+| Variable | Description | Default |
 | --- | --- | --- |
-| `PORT` | 待ち受けポート | 3000 |
-| `NODE_ENV` | 実行環境 | development |
-| `DB_PATH` | SQLite ファイルパス | ./data/booking.db |
-| `AUTH_MODE` | `mock` または `checklogin` | mock |
-| `CHECKLOGIN_URL` | 本番連携時の /checklogin | （空） |
-| `MOCK_USER_NAME` | モック認証の氏名 | Taro Yamada |
-| `MOCK_USER_DEPARTMENT` | モック認証の部署 | General Affairs |
-| `SLOT_MINUTES` | 予約の刻み（分） | 10 |
-| `BUSINESS_START_HOUR` | 予約・表示の開始時刻（時） | 7 |
-| `BUSINESS_END_HOUR` | 予約・表示の終了時刻（時） | 21 |
-| `BOOKING_WINDOW_DEFAULT_DAYS` | 一般部門の予約可能日数 | 90 |
-| `BOOKING_WINDOW_HR_DAYS` | HR 部門の予約可能日数 | 180 |
-| `HR_DEPARTMENTS` | HR とみなす部門名（部分一致, カンマ区切り） | HR,Human Resources,Recruiting,People,Talent |
-| `ERP_ENABLED` | ERP 連携の有効化 | false |
+| `PORT` | Listen port | 3000 |
+| `NODE_ENV` | Environment | development |
+| `DB_PATH` | SQLite file path | ./data/booking.db |
+| `AUTH_MODE` | `mock` or `checklogin` | mock |
+| `CHECKLOGIN_URL` | `/checklogin` endpoint for production | (empty) |
+| `MOCK_USER_NAME` | Name for mock auth | Taro Yamada |
+| `MOCK_USER_DEPARTMENT` | Department for mock auth | General Affairs |
+| `SLOT_MINUTES` | Booking increment (minutes) | 10 |
+| `BUSINESS_START_HOUR` | Start of selectable business hours | 7 |
+| `BUSINESS_END_HOUR` | End of selectable business hours | 21 |
+| `BOOKING_WINDOW_DEFAULT_DAYS` | Booking window for general departments | 90 |
+| `BOOKING_WINDOW_HR_DAYS` | Booking window for HR departments | 180 |
+| `HR_DEPARTMENTS` | Department names treated as HR (partial match, comma-separated) | HR,Human Resources,Recruiting,People,Talent |
+| `ERP_ENABLED` | Enable ERP integration | false |
 
-## 認証について
+## Authentication
 
-- 開発中は `AUTH_MODE=mock`。`.env` の `MOCK_USER_NAME` / `MOCK_USER_DEPARTMENT` がログインユーザーとして扱われます。
-- 本番では `AUTH_MODE=checklogin` とし、既存の `/checklogin` の仕組み（リバースプロキシ/セッション）で
-  検証済みのユーザー情報を利用します。連携ポイントは `src/middleware/auth.js` です。
+- During development, `AUTH_MODE=mock`: `MOCK_USER_NAME` / `MOCK_USER_DEPARTMENT` from `.env`
+  are treated as the logged-in user.
+- In production, set `AUTH_MODE=checklogin` and use the existing `/checklogin` mechanism
+  (reverse proxy / session) for the verified user. The integration point is
+  `src/middleware/auth.js`.
 
-### キャンセルの権限について（現状）
+### Cancellation permissions (current behavior)
 
-- 現在は**権限チェックなし**で、誰でもどの予約でもキャンセルできます。
-- 「HR 系部門は全予約をキャンセル可 / その他は登録者本人のみ」というルールは**未実装**です。
-  ログインユーザーが確定する `/checklogin` 認証の実装と合わせて導入するのが適切です。
+- There is currently **no permission check**: anyone can cancel any booking.
+- The rule "HR departments can cancel any booking / others can cancel only their own" is
+  **not yet implemented**. It should be added together with `/checklogin` auth, once the
+  logged-in user is reliably known.
 
-## API 概要
+## API overview
 
-| メソッド | パス | 説明 |
+| Method | Path | Description |
 | --- | --- | --- |
-| GET | `/api/config` | 予約ルール・営業時間・バージョン等の設定 |
-| GET | `/api/auth/me` | ログインユーザー情報 |
-| GET | `/api/rooms` | 会議室一覧（`?all=1` で停止中も含む） |
-| POST | `/api/rooms` | 会議室の登録 |
-| PUT | `/api/rooms/:id` | 会議室の更新 |
-| DELETE | `/api/rooms/:id` | 会議室の停止（論理削除） |
-| GET | `/api/availability?start_at=&end_at=` | 指定時間帯の空き/使用中の会議室 |
-| GET | `/api/bookings` | 予約一覧（`room_id` / `from` / `to` でフィルタ） |
-| POST | `/api/bookings` | 予約の作成 |
-| PUT | `/api/bookings/:id` | 予約の更新 |
-| DELETE | `/api/bookings/:id` | 予約の取消 |
-| GET | `/api/pdf/booking/:id` | 予約確認書 PDF（UI からは未使用） |
-| POST | `/api/pdf/upload` | PDF アップロード（連携用の受け口） |
+| GET | `/api/config` | Booking rules, business hours, version |
+| GET | `/api/auth/me` | Logged-in user info |
+| GET | `/api/rooms` | List rooms (`?all=1` includes disabled) |
+| POST | `/api/rooms` | Create a room |
+| PUT | `/api/rooms/:id` | Update a room |
+| DELETE | `/api/rooms/:id` | Disable a room (soft delete) |
+| GET | `/api/availability?start_at=&end_at=` | Available / busy rooms for a time slot |
+| GET | `/api/bookings` | List bookings (filter by `room_id` / `from` / `to`) |
+| POST | `/api/bookings` | Create a booking |
+| PUT | `/api/bookings/:id` | Update a booking |
+| DELETE | `/api/bookings/:id` | Cancel a booking |
+| GET | `/api/pdf/booking/:id` | Booking confirmation PDF (not used by the UI) |
+| POST | `/api/pdf/upload` | PDF upload endpoint (integration hook) |
 
-## デプロイ（Render / 無料プラン）
+## Deployment (Render / free plan)
 
-バックエンド（Express + SQLite）を含むため、静的ホスティングでは動作しません。
-同梱の `render.yaml`（Blueprint）で Render にデプロイできます。
+Because it includes a backend (Express + SQLite), static hosting won't work. Use the
+included `render.yaml` (Blueprint) to deploy to Render.
 
 1. https://dashboard.render.com/ → **New** → **Blueprint**
-2. このリポジトリを選択（`render.yaml` が読み込まれます）
-3. 数分後 `https://<サービス名>.onrender.com` で公開されます
+2. Select this repository (`render.yaml` is picked up)
+3. After a few minutes it is served at `https://<service-name>.onrender.com`
 
-補足:
-- Node は `.node-version`（20.18.1）で固定しています（better-sqlite3 のビルド済みバイナリ利用のため）。
-- 無料プランはアイドルでスリープし、ディスクが一時的です。再デプロイ/復帰で予約データはリセットされ、
-  起動時に既定の会議室が自動投入されます。予約を永続化するには Render の Disk（有料）を使い、
-  `render.yaml` の該当箇所を有効化して `DB_PATH` を `/data/booking.db` に変更してください。
+Notes:
+- Node is pinned via `.node-version` (20.18.1) so better-sqlite3 uses a prebuilt binary.
+- The free plan sleeps when idle and its disk is ephemeral. On redeploy/wake the booking
+  data resets and the default rooms are auto-seeded on startup. To persist bookings, use a
+  Render Disk (paid): enable the disk section in `render.yaml` and set `DB_PATH` to
+  `/data/booking.db`.
 
-## ディレクトリ構成
+## Project structure
 
 ```
 src/
-  server.js               エントリポイント
-  config.js               .env 読み込み・設定
+  server.js               Entry point
+  config.js               .env loading / configuration
   db/
-    index.js              SQLite 接続・スキーマ適用・起動時の自動シード
-    schema.sql            スキーマ
-    defaultRooms.js       既定の会議室定義（自動シード / seed で共用）
-    init.js               スキーマ作成のみ（npm run init-db）
-    seed.js               既定会議室の投入（npm run seed）
-  middleware/auth.js      認証（mock / checklogin）
+    index.js              SQLite connection, schema apply, startup auto-seed
+    schema.sql            Schema
+    defaultRooms.js       Default room definitions (shared by auto-seed and seed)
+    init.js               Create schema only (npm run init-db)
+    seed.js               Insert default rooms (npm run seed)
+  middleware/auth.js      Auth (mock / checklogin)
   routes/
     auth.js               /api/auth
     rooms.js              /api/rooms
-    bookings.js           /api/bookings（重複防止トランザクション）
-    availability.js       /api/availability（空き検索）
-    pdf.js                /api/pdf（確認書 PDF / アップロード）
+    bookings.js           /api/bookings (overlap-prevention transaction)
+    availability.js       /api/availability (availability search)
+    pdf.js                /api/pdf (confirmation PDF / upload)
   services/
-    bookingRules.js       予約ルール（10分単位・営業時間・部門別期間・検証）
-    erp.js                ERP 連携 (mssql, SELECT のみ) 雛形
+    bookingRules.js       Booking rules (slot, business hours, dept windows, validation)
+    erp.js                ERP integration (mssql, SELECT only) scaffold
 public/
-  index.html / app.js     Booking 画面（予約フォーム + スケジュール + 空き絞り込み）
-  rooms.html / rooms.js   Rooms 画面（会議室管理）
-  timeline.css            スケジュールのスタイル
-  vendor/                 Bootstrap 5（同梱）
+  index.html / app.js     Booking page (form + schedule + availability filtering)
+  rooms.html / rooms.js   Rooms page (room management)
+  timeline.css            Schedule styles
+  vendor/                 Bootstrap 5 (vendored)
 ```
 
-## 注意事項
+## Notes
 
-- 予約確認書 PDF（`/api/pdf/booking/:id`）は pdf-lib の標準フォント（Helvetica）を使用するため、
-  日本語はそのまま描画できません（現状は安全に置換）。日本語出力が必要な場合は fontkit で
-  日本語 TTF を埋め込んでください。現在この機能は UI からは呼び出していません。
-- ERP 連携（`src/services/erp.js`）は SELECT のみ許可の雛形です（既定は無効）。
+- The confirmation PDF (`/api/pdf/booking/:id`) uses pdf-lib's standard font (Helvetica),
+  so Japanese text cannot be rendered as-is (non-encodable characters are replaced safely).
+  To output Japanese, embed a Japanese TTF via fontkit. This feature is not currently
+  invoked from the UI.
+- The ERP integration (`src/services/erp.js`) is a SELECT-only scaffold, disabled by default.
