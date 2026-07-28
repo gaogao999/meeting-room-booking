@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Analytics - Meeting Room Booking</title>
+  <link href="/vendor/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    .stat-tile { border: 1px solid #e9ecef; border-radius: 8px; padding: 14px 16px; height: 100%; }
+    .stat-tile .val { font-size: 1.6rem; font-weight: 700; line-height: 1.1; }
+    .stat-tile .lbl { color: #6c757d; font-size: 0.8rem; }
+    .util-bar { background: #eef2f7; border-radius: 4px; height: 18px; overflow: hidden; }
+    .util-bar > span { display: block; height: 100%; background: #0d6efd; }
+    .heat td, .heat th { text-align: center; font-size: 0.72rem; padding: 2px 4px; border: 1px solid #f0f0f0; }
+    .heat th { color: #6c757d; font-weight: 600; }
+    .heat .rowlbl { text-align: right; color: #495057; font-weight: 600; white-space: nowrap; }
+    .heat-wrap { overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container-fluid px-2 px-md-4">
+      <a class="navbar-brand" href="/">Meeting Room Booking</a>
+      <div class="navbar-nav me-auto ms-3">
+        <a class="nav-link" href="/">Booking</a>
+        <a class="nav-link" href="/rooms.html">Rooms</a>
+        <a class="nav-link active" href="/stats.html">Analytics</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container-fluid px-2 px-md-4 my-4">
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-light d-flex align-items-center flex-wrap gap-2">
+        <span class="fw-bold">Utilization &amp; Usage</span>
+        <div class="ms-auto d-flex align-items-end gap-2 flex-wrap">
+          <div><label class="form-label mb-0 small">From</label>
+            <input type="date" class="form-control form-control-sm" id="from" /></div>
+          <div><label class="form-label mb-0 small">To</label>
+            <input type="date" class="form-control form-control-sm" id="to" /></div>
+          <button class="btn btn-sm btn-primary" id="apply">Apply</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="row g-3" id="tiles"></div>
+        <div class="form-text mt-2" id="rangeNote"></div>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-light fw-bold">Room utilization</div>
+          <div class="card-body" id="perRoom"></div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-light fw-bold">Usage by department</div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-sm mb-0 align-middle">
+                <thead class="table-light"><tr><th>Department</th><th class="text-end">Bookings</th><th class="text-end">Hours</th></tr></thead>
+                <tbody id="byDept"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mt-4">
+      <div class="card-header bg-light fw-bold">Busy times (booked minutes by day &amp; hour)</div>
+      <div class="card-body heat-wrap">
+        <table class="heat" id="heatmap"></table>
+        <div class="form-text mt-2">Darker = more booked. Hover a cell for minutes.</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/vendor/bootstrap.bundle.min.js"></script>
+  <script src="/stats.js"></script>
+</body>
+</html>

@@ -23,6 +23,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/rooms', require('./routes/rooms'));
 app.use('/api/bookings', require('./routes/bookings'));
 app.use('/api/availability', require('./routes/availability'));
+app.use('/api/stats', require('./routes/stats'));
 
 // Settings used by the frontend (booking rules, business hours, version)
 app.get('/api/config', (req, res) => {

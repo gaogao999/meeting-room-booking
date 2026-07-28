@@ -67,11 +67,17 @@ const updateIfFree = db.transaction((data) => {
   return { id: data.id };
 });
 
-// List bookings (filters: room_id, from, to)
+// List bookings (filters: room_id, from, to, status)
+// By default only confirmed bookings are returned (cancelled ones are kept in the
+// database for analytics but hidden from the schedule). Pass status=all to include them.
 router.get('/', (req, res) => {
-  const { room_id, from, to } = req.query;
+  const { room_id, from, to, status } = req.query;
   const clauses = [];
   const params = [];
+  if (status !== 'all') {
+    clauses.push('b.status = ?');
+    params.push(status || 'confirmed');
+  }
   if (room_id) {
     clauses.push('b.room_id = ?');
     params.push(room_id);
@@ -217,11 +223,12 @@ router.put('/:id', (req, res) => {
   res.json(updated);
 });
 
-// Cancel a booking
+// Cancel a booking (soft delete: keep the row for analytics, mark it cancelled).
+// Cancelled bookings no longer block the slot and are hidden from the schedule.
 router.delete('/:id', (req, res) => {
   const existing = db.prepare('SELECT * FROM bookings WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Booking not found.' });
-  db.prepare('DELETE FROM bookings WHERE id = ?').run(req.params.id);
+  db.prepare("UPDATE bookings SET status = 'cancelled' WHERE id = ?").run(req.params.id);
   res.json({ ok: true });
 });
 

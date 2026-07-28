@@ -23,6 +23,9 @@ visible on a timeline.
   - **Other departments**: up to 3 months ahead (default 90 days)
 - **Overlap prevention**: no double-booking of the same room; a transaction also prevents
   races from concurrent requests.
+- **Analytics** (`Analytics` page): room utilization, usage by department, a day×hour
+  busy-times heatmap, average duration and cancellation rate for a date range.
+  Cancellations are soft-deleted (kept in the database) so this history is preserved.
 - **Business hours**: bookings and the schedule are limited to business hours
   (default 07:00–21:00), enforced on the server as well.
 
@@ -97,6 +100,8 @@ exist in both factories.
 ### Cancellation permissions (current behavior)
 
 - There is currently **no permission check**: anyone can cancel any booking.
+- Cancellation is a **soft delete**: the booking's `status` becomes `cancelled` (the row is
+  kept for analytics). Cancelled bookings free the slot and are hidden from the schedule.
 - The rule "HR departments can cancel any booking / others can cancel only their own" is
   **not yet implemented**. It should be added together with `/checklogin` auth, once the
   logged-in user is reliably known.
@@ -112,10 +117,11 @@ exist in both factories.
 | PUT | `/api/rooms/:id` | Update a room |
 | DELETE | `/api/rooms/:id` | Disable a room (soft delete) |
 | GET | `/api/availability?start_at=&end_at=` | Available / busy rooms for a time slot |
-| GET | `/api/bookings` | List bookings (filter by `room_id` / `from` / `to`) |
+| GET | `/api/bookings` | List bookings (filter by `room_id` / `from` / `to` / `status`; confirmed only by default) |
 | POST | `/api/bookings` | Create a booking |
 | PUT | `/api/bookings/:id` | Update a booking |
-| DELETE | `/api/bookings/:id` | Cancel a booking |
+| DELETE | `/api/bookings/:id` | Cancel a booking (soft delete) |
+| GET | `/api/stats?from=&to=` | Utilization / usage statistics for a date range |
 
 ## Deployment (Render / free plan)
 
@@ -151,11 +157,13 @@ src/
     rooms.js              /api/rooms
     bookings.js           /api/bookings (overlap-prevention transaction)
     availability.js       /api/availability (availability search)
+    stats.js              /api/stats (utilization / usage analytics)
   services/
     bookingRules.js       Booking rules (slot, business hours, dept windows, validation)
 public/
   index.html / app.js     Booking page (form + schedule + availability filtering)
   rooms.html / rooms.js   Rooms page (room management)
+  stats.html / stats.js   Analytics page (utilization, department usage, heatmap)
   timeline.css            Schedule styles
   vendor/                 Bootstrap 5 (vendored)
 ```
