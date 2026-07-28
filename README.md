@@ -31,7 +31,7 @@ visible on a timeline.
 
 ## Tech stack
 
-- Node.js (>= 18, v20 recommended) / Express
+- Node.js 22 LTS (pinned via `.node-version`; supported until April 2027) / Express
 - Frontend: HTML + Bootstrap 5 (vendored under `public/vendor/`, no CDN dependency)
 - Database: SQLite (better-sqlite3)
 - Auth: reuses the existing `/checklogin`; mock auth during development
@@ -133,7 +133,8 @@ included `render.yaml` (Blueprint) to deploy to Render.
 3. After a few minutes it is served at `https://<service-name>.onrender.com`
 
 Notes:
-- Node is pinned via `.node-version` (20.18.1) so better-sqlite3 uses a prebuilt binary.
+- Node is pinned via `.node-version` (22.22.2, the current LTS) so better-sqlite3 installs
+  a prebuilt binary instead of compiling from source.
 - The free plan sleeps when idle and its disk is ephemeral. On redeploy/wake the booking
   data resets and the default rooms are auto-seeded on startup. To persist bookings, use a
   Render Disk (paid): enable the disk section in `render.yaml` and set `DB_PATH` to
