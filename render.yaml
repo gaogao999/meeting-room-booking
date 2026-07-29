@@ -33,8 +33,9 @@ services:
         value: 山田 太郎
       - key: MOCK_USER_DEPARTMENT
         value: 総務部
-      - key: DB_PATH
-        value: ./data/booking.db
+      # DB_PATH は未指定 → アプリはデフォルトで、アプリフォルダの外
+      # (兄弟フォルダ) に自動保存する。永続ディスクを有効化する場合のみ
+      # 下部のコメントを外し、DB_PATH をそのマウント先に明示する。
       - key: SLOT_MINUTES
         value: "10"
       - key: BOOKING_WINDOW_DEFAULT_DAYS
@@ -44,7 +45,8 @@ services:
       - key: HR_DEPARTMENTS
         value: 人事部,HR,人事,採用,人材開発
     # ---- 永続ディスク（予約データを保持したい場合・有料プラン）----
-    # plan を free 以外にした上で、以下を有効化し DB_PATH を /data/booking.db に変更する
+    # plan を free 以外にした上で、以下のコメントを外し、
+    # envVars に DB_PATH=/data/booking.db を追加する
     # disk:
     #   name: data
     #   mountPath: /data

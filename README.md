@@ -77,7 +77,7 @@ exist in both factories.
 | --- | --- | --- |
 | `PORT` | Listen port | 3000 |
 | `NODE_ENV` | Environment | development |
-| `DB_PATH` | SQLite file path (in production, set an absolute path **outside** the app directory) | ./data/booking.db |
+| `DB_PATH` | SQLite file path. Optional — defaults to a sibling directory outside the app folder (see Operations below); override only for a specific location | *(auto)* |
 | `BACKUP_DIR` | Output directory for `npm run backup` | ./backups |
 | `BACKUP_KEEP` | Number of backups to retain | 14 |
 | `AUTH_MODE` | `mock` or `checklogin` | mock |
@@ -144,21 +144,32 @@ Notes:
 
 ## Operations: updating without losing bookings
 
-Booking data lives in a single SQLite file, entirely separate from the application
-code. Updates replace code only — they never touch that file — so bookings survive
-as long as the two are kept apart.
+Booking data lives in a single SQLite file, kept outside the application code by
+default. Updates replace the app directory only — they never touch that file — so
+bookings survive as long as the two stay apart, which requires no setup.
 
-### One-time setup
+### Where the database lives (no setup needed)
 
-Put the database **outside the application directory** and point `DB_PATH` at it.
-If the file stays under `./data`, replacing the app folder during an update deletes
-the bookings with it.
+With `DB_PATH` unset, the app automatically stores the database in a sibling
+directory next to the app folder, e.g.:
+
+```
+.../meeting-room-booking/        ← app code (replaced wholesale on updates)
+.../meeting-room-booking-data/   ← booking.db (untouched by updates)
+```
+
+This is computed from the app's own install location, so it works out of the box
+on any server without IT needing to configure a path. Only set `DB_PATH` explicitly
+if you want the file somewhere specific (a different disk, shared storage, etc.):
 
 ```bash
-# .env — use an absolute path outside the app directory
+# .env — optional override; must be an absolute path outside the app directory
 DB_PATH=/var/lib/meeting-room/booking.db
 BACKUP_DIR=/var/backups/meeting-room
 ```
+
+If `DB_PATH` is ever set to a path that resolves inside the app directory, the app
+prints a startup warning so the misconfiguration doesn't go unnoticed.
 
 ### Update procedure
 

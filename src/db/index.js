@@ -11,6 +11,20 @@ if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
 
+// Safety net: warn loudly if the database ended up inside the app directory
+// (e.g. DB_PATH was overridden to a relative path). A deploy that replaces the
+// app directory wholesale would delete it from there. This should not happen
+// with the default configuration, which resolves outside the app directory.
+const appDir = path.resolve(__dirname, '..', '..');
+if (dbPath.startsWith(appDir + path.sep)) {
+  console.warn(
+    '\n⚠️  WARNING: the database file is inside the application directory:\n' +
+      `   ${dbPath}\n` +
+      '   A deployment that replaces this directory will delete your booking data.\n' +
+      '   Set DB_PATH to a location outside the app directory (see .env.example).\n'
+  );
+}
+
 const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
