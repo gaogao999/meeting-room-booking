@@ -331,10 +331,8 @@ function renderFreeCells(room, busy) {
   // Free time is cut into clickable cells aligned to the hour grid, so one click
   // books exactly the hour it sits under.
   const cells = [];
-  let freeMin = 0;
   const emit = (from, to) => {
     if (to - from < 10) return;
-    freeMin += to - from;
     let a = from;
     while (a < to) {
       const b = Math.min(to, (Math.floor(a / 60) + 1) * 60);
@@ -367,7 +365,7 @@ function renderFreeCells(room, busy) {
     cursor = Math.max(cursor, Math.min(DAY_END, b.end));
   }
   if (cursor < DAY_END) emit(cursor, DAY_END);
-  return { html: cells.join(''), freeMin };
+  return cells.join('');
 }
 
 function renderTimeline(bookingsByRoom) {
@@ -434,12 +432,13 @@ function renderTimeline(bookingsByRoom) {
         })
         .join('');
 
-      const free = renderFreeCells(room, list);
       html +=
         `<div class="tl-row"><div class="tl-roomcell">` +
-        `<span class="tl-roomname">${escapeHtml(room.name)}</span>` +
-        `<span class="tl-roomfree">${durText(free.freeMin)} free</span></div>` +
-        `<div class="tl-track" data-room="${room.id}">${hourLines()}${free.html}${bars}</div></div>`;
+        `<span class="tl-roomname">${escapeHtml(room.name)}</span></div>` +
+        `<div class="tl-track" data-room="${room.id}">${hourLines()}${renderFreeCells(
+          room,
+          list
+        )}${bars}</div></div>`;
     }
   }
   html += '</div>';
@@ -460,18 +459,6 @@ function renderLocationFilters() {
     .join('');
 }
 
-function renderDeptLegend(bookings) {
-  const depts = [...new Set(bookings.map((b) => b.department).filter(Boolean))].sort();
-  document.getElementById('deptLegend').innerHTML = depts
-    .map(
-      (d) =>
-        `<span class="item"><span class="sw" style="background:${colorForDept(d)}"></span>${escapeHtml(
-          d
-        )}</span>`
-    )
-    .join('');
-}
-
 async function loadTimeline() {
   state.date = document.getElementById('tlDate').value || todayStr();
   document.getElementById('tlDateLabel').textContent = dayLabel(state.date);
@@ -485,7 +472,6 @@ async function loadTimeline() {
     const byRoom = {};
     for (const b of list) (byRoom[b.room_id] = byRoom[b.room_id] || []).push(b);
     renderTimeline(byRoom);
-    renderDeptLegend(list);
   } catch (err) {
     document.getElementById('timeline').innerHTML =
       `<div class="tl-empty-msg text-danger">${escapeHtml(err.message)}</div>`;

@@ -264,11 +264,6 @@
   color: var(--ink);
   line-height: 1.2;
 }
-.tl-roomfree {
-  font-size: 11.5px;
-  color: var(--ink-3);
-  line-height: 1.2;
-}
 .tl-track {
   position: relative;
   flex: 1 1 auto;
@@ -383,34 +378,6 @@
   background: #e3edfb;
   color: var(--brand);
   font-weight: 700;
-}
-.tl-legend {
-  padding: 9px 18px;
-  border-top: 1px solid #e6eaef;
-  background: #fbfcfd;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 18px;
-  align-items: center;
-}
-.tl-legend .lbl {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--ink-4);
-}
-.tl-legend .item {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 13px;
-  color: var(--ink-2);
-}
-.tl-legend .sw {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
 }
 .tl-empty-msg {
   padding: 2rem;
