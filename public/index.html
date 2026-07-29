@@ -8,44 +8,57 @@
   <link href="/timeline.css" rel="stylesheet" />
 </head>
 <body>
-  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-    <div class="container-fluid px-2 px-md-4">
-      <a class="navbar-brand" href="/">Meeting Room Booking</a>
-      <span class="navbar-text text-white-50 small" id="appVersion"></span>
-      <div class="navbar-nav ms-3">
+  <nav class="navbar navbar-dark app-nav">
+    <div class="container-fluid px-3 px-md-4 d-flex align-items-stretch" style="min-height:60px">
+      <a class="navbar-brand d-flex align-items-center me-4" href="/">Meeting Room Booking</a>
+      <div class="d-flex align-items-stretch gap-1">
         <a class="nav-link active" href="/">Booking</a>
         <a class="nav-link" href="/rooms.html">Rooms</a>
         <a class="nav-link" href="/stats.html">Analytics</a>
       </div>
-      <span class="navbar-text text-white ms-auto" id="currentUser"></span>
+      <div class="ms-auto d-flex align-items-center gap-3">
+        <span class="small" style="color:rgba(255,255,255,.55)" id="appVersion"></span>
+        <div class="user-chip" id="currentUser" hidden>
+          <div class="avatar" id="userInitials"></div>
+          <div>
+            <div class="nm" id="userName"></div>
+            <div class="dp" id="userDept"></div>
+          </div>
+        </div>
+      </div>
     </div>
   </nav>
 
-  <div class="container-fluid px-2 px-md-4 my-4">
+  <div class="container-fluid px-3 px-md-4 my-4">
     <div class="row g-4">
       <!-- New reservation: pick time first, then choose from available rooms -->
       <div class="col-xl-4">
-        <div class="card shadow-sm">
-          <div class="card-header bg-light fw-bold">New Reservation</div>
-          <div class="card-body">
+        <div class="panel sticky-form">
+          <div class="panel-head">
+            <div class="panel-title">New reservation</div>
+            <div class="panel-sub">Pick a time, then a free room.</div>
+          </div>
+          <div class="card-body p-3 p-md-4">
             <div id="formAlert"></div>
             <form id="bookingForm">
               <!-- Step 1: choose date/time -->
-              <div class="mb-3">
-                <label class="form-label">Date <span class="text-danger">*</span></label>
+              <div class="step"><span class="num">1</span><span class="ttl">When</span></div>
+              <label class="form-label d-block" for="date">Date <span class="text-danger">*</span></label>
+              <div class="d-flex gap-2 mb-3">
                 <input type="date" class="form-control" id="date" required />
+                <button type="button" class="btn btn-outline-secondary fw-semibold text-nowrap" id="dateToday">Today</button>
               </div>
               <div class="row">
-                <div class="col-6 mb-3">
-                  <label class="form-label">Start <span class="text-danger">*</span></label>
+                <div class="col-6 mb-2">
+                  <label class="form-label d-block">Start <span class="text-danger">*</span></label>
                   <div class="input-group">
                     <select class="form-select" id="startHour" required></select>
                     <span class="input-group-text px-2">:</span>
                     <select class="form-select" id="startMin" required></select>
                   </div>
                 </div>
-                <div class="col-6 mb-3">
-                  <label class="form-label">End <span class="text-danger">*</span></label>
+                <div class="col-6 mb-2">
+                  <label class="form-label d-block">End <span class="text-danger">*</span></label>
                   <div class="input-group">
                     <select class="form-select" id="endHour" required></select>
                     <span class="input-group-text px-2">:</span>
@@ -53,57 +66,75 @@
                   </div>
                 </div>
               </div>
+              <div class="panel-sub mb-4" id="slotSummary"></div>
+
               <!-- Step 2: choose from the rooms available for that time -->
-              <div class="mb-3">
-                <label class="form-label">Available room <span class="text-danger">*</span></label>
-                <select class="form-select" id="roomId" required disabled>
-                  <option value="">Select a date and time</option>
-                </select>
-                <div class="form-text" id="availHint"></div>
+              <div class="step">
+                <span class="num">2</span><span class="ttl">Which room</span>
+                <span class="badge-free" id="freeCount"></span>
               </div>
+              <div class="panel-sub mb-2">Only rooms free for this time are listed.</div>
+              <select class="form-select mb-1" id="roomId" required disabled>
+                <option value="">Select a date and time</option>
+              </select>
+              <div class="form-text mb-4" id="availHint"></div>
 
               <!-- Step 3: details -->
+              <div class="step"><span class="num">3</span><span class="ttl">Details</span></div>
               <div class="row">
                 <div class="col-6 mb-3">
-                  <label class="form-label">Department <span class="text-danger">*</span></label>
+                  <label class="form-label d-block" for="department">Department <span class="text-danger">*</span></label>
                   <input type="text" class="form-control" id="department" required />
                 </div>
                 <div class="col-6 mb-3">
-                  <label class="form-label">Name <span class="text-danger">*</span></label>
+                  <label class="form-label d-block" for="reserver">Name <span class="text-danger">*</span></label>
                   <input type="text" class="form-control" id="reserver" required />
                 </div>
               </div>
-              <div class="mb-3">
-                <label class="form-label">Purpose</label>
-                <input type="text" class="form-control" id="purpose" placeholder="Optional" />
-              </div>
-              <button type="submit" class="btn btn-primary w-100" id="bookBtn" disabled>Book</button>
+              <label class="form-label d-block" for="purpose">Purpose <span class="fw-normal text-secondary">(optional)</span></label>
+              <input type="text" class="form-control mb-4" id="purpose" placeholder="e.g. Line 3 review" />
+              <button type="submit" class="btn-book" id="bookBtn" disabled>Select a room first</button>
             </form>
-            <div class="form-text mt-2" id="ruleHint"></div>
+            <div class="rule-hint" id="ruleHintWrap">
+              <span id="ruleHint"></span>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- Schedule (timeline) -->
       <div class="col-xl-8">
-        <div class="card shadow-sm">
-          <div class="card-header bg-light d-flex align-items-center flex-wrap gap-2">
-            <span class="fw-bold">Schedule</span>
-            <div class="btn-group btn-group-sm ms-3">
-              <button class="btn btn-outline-secondary" id="prevDay">&lt;</button>
-              <button class="btn btn-outline-secondary" id="today">Today</button>
-              <button class="btn btn-outline-secondary" id="nextDay">&gt;</button>
+        <div class="panel">
+          <div class="panel-head d-flex align-items-center flex-wrap gap-3">
+            <div>
+              <div class="panel-title">Schedule</div>
+              <div class="panel-sub" id="tlDateLabel"></div>
             </div>
-            <input type="date" class="form-control form-control-sm ms-2" id="tlDate" style="width:auto" />
-            <span class="ms-auto text-muted small" id="tlDateLabel"></span>
+            <div class="d-flex align-items-center gap-2">
+              <button class="btn btn-outline-secondary" id="prevDay" aria-label="Previous day">&lt;</button>
+              <button class="btn btn-outline-secondary fw-semibold" id="today">Today</button>
+              <button class="btn btn-outline-secondary" id="nextDay" aria-label="Next day">&gt;</button>
+              <input type="date" class="form-control" id="tlDate" style="width:auto" />
+            </div>
+            <div class="ms-auto d-flex align-items-center gap-3 panel-sub">
+              <span class="d-flex align-items-center gap-2"><span class="sw" style="width:14px;height:14px;border-radius:4px;background:#2563eb"></span>Booked</span>
+              <span class="d-flex align-items-center gap-2"><span style="width:14px;height:14px;border-radius:4px;border:1.5px dashed #9fb0c2;background:#f6f9fd"></span>Free — click to book</span>
+            </div>
           </div>
-          <div class="card-body p-0">
-            <div id="timeline" class="timeline"></div>
+
+          <div class="chipbar">
+            <span class="lbl">Location</span>
+            <div class="d-flex align-items-center gap-2 flex-wrap" id="locFilters"></div>
+          </div>
+
+          <div id="timeline" class="timeline"></div>
+
+          <div class="tl-legend">
+            <span class="lbl">Department</span>
+            <div class="d-flex align-items-center flex-wrap gap-3" id="deptLegend"></div>
           </div>
         </div>
-        <p class="text-muted small mt-2 mb-0" id="tlRangeNote">
-          Click a bar for details, or click an empty area to start a booking for that room and time.
-        </p>
+        <p class="panel-sub mt-2 mb-0" id="tlRangeNote"></p>
       </div>
     </div>
   </div>
@@ -118,8 +149,8 @@
         </div>
         <div class="modal-body" id="detailBody"></div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-danger" id="detailCancel">Cancel Booking</button>
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-danger" id="detailCancel">Cancel Booking</button>
         </div>
       </div>
     </div>

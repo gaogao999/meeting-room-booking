@@ -1,127 +1,427 @@
-/* タイムライン（ガントチャート風スケジュール）*/
-.timeline {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch; /* smooth momentum scrolling on iOS */
+/* Schedule timeline (Gantt-style) + improved UI chrome
+ * Visible window is driven by BUSINESS_START_HOUR / BUSINESS_END_HOUR (8-20).
+ * One hour is always --tl-hour-w wide, so bar labels never collapse; the grid
+ * scrolls horizontally on narrow screens instead of squeezing.
+ */
+:root {
+  --tl-room-w: 172px;
+  --tl-hour-w: 60px;
+  --tl-row-h: 46px;
+  --line: #dbe1e8;
+  --line-soft: #edf0f4;
+  --ink: #16202b;
+  --ink-2: #49535e;
+  --ink-3: #7a848f;
+  --ink-4: #89939f;
+  --brand: #0b3d91;
 }
-.tl-grid {
-  /* Fill the available width on desktop so the whole day fits without
-     horizontal scrolling. On small screens the media query below sets a
-     larger min-width so it becomes scrollable with legible bars. */
-  min-width: 100%;
+
+/* ---- shared chrome ---- */
+.app-nav {
+  background: var(--brand);
+  min-height: 60px;
+  padding: 0;
+}
+.app-nav .nav-link {
+  display: flex;
+  align-items: center;
+  padding: 0 18px;
+  color: rgba(255, 255, 255, 0.72);
+  font-weight: 500;
+  font-size: 15px;
+}
+.app-nav .nav-link:hover {
+  color: #fff;
+}
+.app-nav .nav-link.active {
+  color: #fff;
+  font-weight: 600;
+  box-shadow: inset 0 -3px 0 #ffc107;
+}
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 5px 14px 5px 6px;
+}
+.user-chip .avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #ffc107;
+  color: #332701;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 12px;
+}
+.user-chip .nm {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+.user-chip .dp {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 11px;
+  line-height: 1.15;
+}
+
+.panel {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  overflow: clip; /* clip, NOT hidden: hidden would break position:sticky */
+}
+.panel-head {
+  padding: 14px 18px;
+  border-bottom: 1px solid #e6eaef;
+  background: #f7f9fb;
+}
+.panel-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.2;
+}
+.panel-sub {
+  font-size: 13px;
+  color: #68727e;
+}
+.sticky-form {
+  position: sticky;
+  top: 12px;
+}
+
+/* Step headers in the booking form */
+.step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.step .num {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--brand);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+.step .ttl {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.step .badge-free {
+  margin-left: auto;
+  background: #e7f2e9;
+  color: #1b6b34;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+.form-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  margin-bottom: 6px;
+}
+/* 16px inputs: prevents iOS zoom-on-focus and stays legible on the factory floor */
+.form-control,
+.form-select {
+  font-size: 16px;
+  border-color: #c9d2db;
+}
+.btn-book {
+  width: 100%;
+  height: 52px;
+  border-radius: 10px;
+  border: none;
+  font-size: 17px;
+  font-weight: 700;
+  background: var(--brand);
+  color: #fff;
+}
+.btn-book:disabled {
+  background: #dde3ea;
+  color: #98a1ab;
+}
+.rule-hint {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 12px;
+  font-size: 12.5px;
+  color: #68727e;
+  line-height: 1.45;
+}
+
+/* ---- filter chips ---- */
+.chipbar {
+  padding: 8px 18px;
+  border-bottom: 1px solid #e6eaef;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.chipbar .lbl {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  margin-right: 2px;
+}
+.chip {
+  height: 29px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid #c9d2db;
+  background: #fff;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+}
+.chip .n {
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  border-radius: 999px;
+  padding: 1px 6px;
+  background: #eef2f7;
+  color: #68727e;
+}
+.chip.active {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: #fff;
+}
+.chip.active .n {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+/* ---- timeline ---- */
+.timeline {
+  overflow: auto;
+  max-height: min(72vh, 640px);
+  -webkit-overflow-scrolling: touch;
 }
 .tl-row {
   display: flex;
-  border-top: 1px solid #e9ecef;
-  min-height: 52px;
+  border-bottom: 1px solid var(--line-soft);
+  min-height: var(--tl-row-h);
 }
 .tl-row.tl-head {
-  border-top: none;
   position: sticky;
   top: 0;
+  z-index: 3;
   background: #fff;
-  z-index: 2;
+  border-bottom: 1px solid var(--line);
 }
 .tl-roomcell {
-  flex: 0 0 140px;
-  width: 140px;
-  padding: 8px 10px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  border-right: 1px solid #dee2e6;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  background: #f8f9fa;
+  flex: 0 0 var(--tl-room-w);
+  width: var(--tl-room-w);
+  padding: 5px 12px;
+  border-right: 1px solid var(--line);
+  background: #fbfcfd;
   position: sticky;
   left: 0;
   z-index: 1;
-}
-.tl-roomloc {
-  display: block;
-  font-weight: 400;
-  font-size: 0.72rem;
-  color: #6c757d;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 .tl-head .tl-roomcell {
-  background: #eef2f7;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  justify-content: flex-end;
+}
+.tl-roomname {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.2;
+}
+.tl-roomfree {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  line-height: 1.2;
 }
 .tl-track {
   position: relative;
   flex: 1 1 auto;
-  min-height: 52px;
+  min-height: var(--tl-row-h);
 }
-/* 時間軸の目盛り（縦線）*/
+.tl-head .tl-track {
+  height: 30px;
+  min-height: 30px;
+}
 .tl-hour {
   position: absolute;
   top: 0;
   bottom: 0;
-  border-left: 1px solid #f0f0f0;
-}
-.tl-head .tl-track {
-  height: 28px;
-  min-height: 28px;
+  border-left: 1px solid #eef1f5;
 }
 .tl-hourlabel {
   position: absolute;
-  top: 4px;
-  transform: translateX(-50%);
-  font-size: 0.72rem;
-  color: #6c757d;
+  top: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #5c6672;
+  font-variant-numeric: tabular-nums;
 }
-/* 予約バー */
+/* location group header */
+.tl-grouprow {
+  display: flex;
+  background: #eef2f7;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.tl-grouprow .g-name {
+  flex: 0 0 var(--tl-room-w);
+  width: var(--tl-room-w);
+  padding: 3px 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #4d5966;
+  position: sticky;
+  left: 0;
+  background: #eef2f7;
+  z-index: 2;
+}
+.tl-grouprow .g-sum {
+  flex: 1 1 auto;
+  padding: 3px 12px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+/* booking bar */
 .tl-booking {
   position: absolute;
   top: 4px;
   bottom: 4px;
-  border-radius: 6px;
-  padding: 3px 6px;
+  border-radius: 8px;
+  padding: 3px 8px;
   color: #fff;
-  font-size: 0.72rem;
-  line-height: 1.1;
-  overflow: hidden;
   cursor: pointer;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(16, 32, 48, 0.22);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.tl-booking:hover {
+  filter: brightness(1.08);
 }
 .tl-booking .tl-time {
+  font-size: 12px;
   font-weight: 700;
-  display: block;
+  line-height: 1.25;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 .tl-booking .tl-purpose {
-  display: block;
+  font-size: 12px;
+  line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  opacity: 0.95;
+}
+/* free slot, one cell per hour */
+.tl-free {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  border: 1.5px dashed #ccd6e0;
+  border-radius: 8px;
+  background: #fafcfe;
+  color: #a7b4c2;
+  font-size: 11.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.tl-free:hover {
+  background: #e8f1fb;
+  border-color: var(--brand);
+  color: var(--brand);
+}
+.tl-free.is-selected {
+  border: 2px solid var(--brand);
+  background: #e3edfb;
+  color: var(--brand);
+  font-weight: 700;
+}
+.tl-legend {
+  padding: 9px 18px;
+  border-top: 1px solid #e6eaef;
+  background: #fbfcfd;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  align-items: center;
+}
+.tl-legend .lbl {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+.tl-legend .item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.tl-legend .sw {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
 }
 .tl-empty-msg {
   padding: 2rem;
   text-align: center;
-  color: #6c757d;
+  color: var(--ink-3);
 }
 
-/* Mobile: compact the schedule so more of the day fits and text stays legible */
 @media (max-width: 576px) {
-  .tl-grid {
-    min-width: 680px;
+  :root {
+    --tl-room-w: 132px;
+    --tl-hour-w: 54px;
+    --tl-row-h: 42px;
   }
-  .tl-roomcell {
-    flex: 0 0 92px;
-    width: 92px;
-    padding: 6px 6px;
-    font-size: 0.72rem;
-  }
-  .tl-roomloc {
-    font-size: 0.62rem;
-  }
-  .tl-row,
-  .tl-track {
-    min-height: 42px;
-  }
-  .tl-hourlabel {
-    font-size: 0.6rem;
-  }
-  .tl-booking {
-    font-size: 0.6rem;
-    padding: 2px 4px;
+  .sticky-form {
+    position: static;
   }
 }
