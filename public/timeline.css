@@ -114,10 +114,14 @@
   .sticky-form {
     position: static;
   }
+  /* Capped so the card fits the window: the timeline scrolls inside itself and
+     the page doesn't, which keeps the booking form and the room column on screen
+     while you look through the day. The subtrahend is the chrome around it —
+     nav, panel head, filter chips, footer and margins. */
   #timeline {
     flex: 1 1 auto;
     min-height: 260px;
-    max-height: none;
+    max-height: calc(100vh - 330px);
   }
 }
 
