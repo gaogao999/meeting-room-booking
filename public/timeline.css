@@ -92,9 +92,33 @@
   font-size: 13px;
   color: #68727e;
 }
+/* Side by side, the reservation panel and the schedule are the same height: both
+   columns stretch to the taller one and the timeline takes up whatever is left,
+   so the two cards start and end on the same line. Below xl they stack and the
+   form sticks instead. */
 .sticky-form {
   position: sticky;
   top: 12px;
+}
+@media (min-width: 1200px) {
+  .booking-row > [class^='col-xl'] {
+    display: flex;
+    flex-direction: column;
+  }
+  .booking-row > [class^='col-xl'] > .panel {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .sticky-form {
+    position: static;
+  }
+  #timeline {
+    flex: 1 1 auto;
+    min-height: 260px;
+    max-height: none;
+  }
 }
 
 /* Step headers in the booking form */
@@ -378,6 +402,12 @@
   background: #e3edfb;
   color: var(--brand);
   font-weight: 700;
+}
+.panel-foot {
+  padding: 9px 18px;
+  border-top: 1px solid #e6eaef;
+  background: #fbfcfd;
+  flex: 0 0 auto;
 }
 .tl-empty-msg {
   padding: 2rem;
