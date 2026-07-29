@@ -348,7 +348,11 @@ function renderFreeCells(room, busy) {
           `<button type="button" class="tl-free${selected ? ' is-selected' : ''}"` +
             ` style="left:${((a - DAY_START) / SPAN) * 100}%;width:calc(${((b - a) / SPAN) * 100}% - 3px)"` +
             ` data-room="${room.id}" data-start="${a}" data-end="${b}"` +
-            ` title="Free ${fmtMin(a)}–${fmtMin(b)} · click to book ${escapeHtml(room.name)}">${label}</button>`
+            ` title="Free ${fmtMin(a)}–${fmtMin(b)} · ${
+              state.selectedRoom === room.id && a === timeMin('endHour', 'endMin')
+                ? 'click to extend to ' + fmtMin(b)
+                : 'click to book ' + escapeHtml(room.name)
+            }">${label}</button>`
         );
       }
       a = b;
@@ -497,9 +501,18 @@ function shiftDay(delta) {
 }
 
 // Click a free cell -> that room + date + exactly that hour, then re-check availability
+// Clicking a free slot selects that hour. Clicking the slot that starts exactly
+// where the current selection ends extends it instead, so 8:00 then 9:00 books
+// 08:00-10:00. Anything else (another room, or a gap because the hour between is
+// taken) starts a fresh selection.
 function startFromCell(roomId, startMin, endMin) {
   const slot = state.config.slotMinutes;
-  let s = Math.max(DAY_START, Math.floor(startMin / slot) * slot);
+  const extending =
+    state.selectedRoom === +roomId && startMin === timeMin('endHour', 'endMin');
+
+  let s = extending
+    ? timeMin('startHour', 'startMin')
+    : Math.max(DAY_START, Math.floor(startMin / slot) * slot);
   s = Math.min(s, DAY_END - slot);
   const e = Math.min(Math.max(endMin, s + slot), DAY_END);
   state.selectedRoom = +roomId;
@@ -602,7 +615,8 @@ async function init() {
     document.getElementById('appVersion').textContent = cfg.version ? `v${cfg.version}` : '';
     document.getElementById('tlRangeNote').textContent =
       `Shown range ${pad(cfg.businessStartHour)}:00–${pad(cfg.businessEndHour)}:00. ` +
-      'Click a booking for details, or a dashed slot to book that room and hour.';
+      'Click a booking for details. Click a dashed slot to book that hour, then click ' +
+      'the next one to extend — two clicks book two hours.';
     if (user.name) {
       document.getElementById('currentUser').hidden = false;
       document.getElementById('userName').textContent = user.name;
