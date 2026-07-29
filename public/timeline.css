@@ -33,9 +33,10 @@
 .app-nav .nav-link:hover {
   color: #fff;
 }
+/* Marked by colour and the underline only: bolding the active item would make it
+   wider and shift the links after it, so the nav would sit differently on each page. */
 .app-nav .nav-link.active {
   color: #fff;
-  font-weight: 600;
   box-shadow: inset 0 -3px 0 #ffc107;
 }
 .user-chip {
