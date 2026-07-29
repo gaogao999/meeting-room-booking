@@ -1,245 +1,179 @@
 # Meeting Room Booking
 
-A web app for registering and booking company meeting rooms. Pick a date and time
-and only the rooms free for that slot are offered; the whole company's schedule is
-visible on a timeline.
+Web app for booking company meeting rooms. Pick a date and time and only the rooms
+free for that slot show up; the whole company's schedule is visible on a timeline.
 
-- Current version: **v1.1.0**
-- The UI is in English.
+Current version: v1.1.0. UI is in English.
 
 ## Features
 
-- **Room management** (`Rooms` page): register rooms with name, location, capacity and
+- Room management (`Rooms` page) — register rooms with name, location, capacity,
   description; disable/enable them.
-- **Booking flow** (`Booking` page): choose a date and start/end time (hour and minute
-  as separate selects). Only the rooms **available for that slot** are shown. Pick a room,
-  then enter department and name (auto-filled from the logged-in user) and an optional
-  purpose. Bookings are in **10-minute increments** and **record the department and name**.
-- **Schedule (timeline)**: rooms (rows) × time axis (07:00–21:00) showing the day's
-  bookings as a Gantt-style chart. Switch days, click a bar for details (with cancel), or
-  click an empty area to start a booking for that room and time.
-- **Per-department booking window**:
-  - **HR departments**: up to 6 months ahead (default 180 days)
-  - **Other departments**: up to 3 months ahead (default 90 days)
-- **Overlap prevention**: no double-booking of the same room; a transaction also prevents
-  races from concurrent requests.
-- **Analytics** (`Analytics` page): room utilization, usage by department, a day×hour
-  busy-times heatmap, average duration and cancellation rate for a date range.
-  Cancellations are soft-deleted (kept in the database) so this history is preserved.
-- **Business hours**: bookings and the schedule are limited to business hours
-  (default 07:00–21:00), enforced on the server as well.
+- Booking flow (`Booking` page) — choose a date and start/end time, pick from the
+  rooms actually available for that slot, department and name are pre-filled from
+  the logged-in user. Bookings are in 10-minute increments and record department
+  and name.
+- Schedule — rooms as rows, time axis 07:00–21:00, bookings drawn as a Gantt-style
+  chart. Click a bar for details, click empty space to start a booking there.
+- Booking window differs by department: HR departments can book up to 6 months out
+  (180 days), everyone else up to 3 months (90 days).
+- No double-booking — overlap check and insert happen in one transaction, so two
+  people can't grab the same slot at once.
+- Analytics page — room utilization, usage by department, a day×hour heatmap,
+  average duration, cancellation rate.
+- Bookings and the schedule are limited to business hours (07:00–21:00 by
+  default), enforced server-side too, not just in the form.
 
 ## Tech stack
 
-- Node.js 22 LTS (pinned via `.node-version`; supported until April 2027) / Express
-- Frontend: HTML + Bootstrap 5 (vendored under `public/vendor/`, no CDN dependency)
-- Database: SQLite (better-sqlite3)
-- Auth: reuses the existing `/checklogin`; mock auth during development
-- Secrets: all managed via `.env`
+- Node.js 22 LTS (pinned in `.node-version`, supported until April 2027) / Express
+- HTML + Bootstrap 5, vendored under `public/vendor/` — no CDN dependency
+- SQLite via better-sqlite3
+- Auth reuses the existing `/checklogin`; mock auth for local dev
+- Config/secrets in `.env`
+
+Runtime dependencies are just `express`, `dotenv`, `better-sqlite3` — nothing else,
+no outbound network calls.
 
 ## Setup
 
 ```bash
-# Install dependencies
 npm install
-
-# Create the env file
 cp .env.example .env
-
-# Start (on first run, the default rooms are auto-seeded if the table is empty)
 npm start
-
-# Development (auto-restart on file changes)
-npm run dev
 ```
 
-Open http://localhost:3000 in your browser.
-
-> Rooms are **auto-seeded on startup**, so `npm run seed` is usually not needed.
-> Use `npm run seed` to seed explicitly, or `npm run init-db` to create the schema only.
+Then open http://localhost:3000. Rooms are seeded automatically on first run if
+the table is empty, so `npm run seed` usually isn't needed — it's there if you
+want to reseed explicitly. `npm run dev` restarts on file changes.
 
 ## Default rooms
 
-On first start (when the `rooms` table is empty) the following are inserted.
-The list is ordered by **location (Factory 1 → 2 …) then room name**.
+Seeded on first run, ordered by location then name:
 
 | Location | Rooms |
 | --- | --- |
 | Factory 1 | Conference room 1 / Conference room 2 / Meeting space 1 / Meeting space 2 / Meeting space 3 |
 | Factory 2 | Conference room 1 / Meeting room 1 / Meeting room 2 / Meeting room 3 |
 
-Room names are **unique per location** (`UNIQUE(name, location)`), so the same name can
+Room names only need to be unique within a location, so "Conference room 1" can
 exist in both factories.
 
-## Environment variables (.env)
+## Environment variables
 
 | Variable | Description | Default |
 | --- | --- | --- |
 | `PORT` | Listen port | 3000 |
 | `NODE_ENV` | Environment | development |
-| `DB_PATH` | SQLite file path. Optional — defaults to a sibling directory outside the app folder (see Operations below); override only for a specific location | *(auto)* |
-| `BACKUP_DIR` | Output directory for `npm run backup` | ./backups |
-| `BACKUP_KEEP` | Number of backups to retain | 14 |
+| `DB_PATH` | SQLite file path — normally leave unset, see Operations below | auto |
+| `BACKUP_DIR` | Where `npm run backup` writes to | ./backups |
+| `BACKUP_KEEP` | How many backups to keep | 14 |
 | `AUTH_MODE` | `mock` or `checklogin` | mock |
-| `CHECKLOGIN_URL` | `/checklogin` endpoint for production | (empty) |
-| `MOCK_USER_NAME` | Name for mock auth | Taro Yamada |
-| `MOCK_USER_DEPARTMENT` | Department for mock auth | General Affairs |
-| `SLOT_MINUTES` | Booking increment (minutes) | 10 |
-| `BUSINESS_START_HOUR` | Start of selectable business hours | 7 |
-| `BUSINESS_END_HOUR` | End of selectable business hours | 21 |
-| `BOOKING_WINDOW_DEFAULT_DAYS` | Booking window for general departments | 90 |
-| `BOOKING_WINDOW_HR_DAYS` | Booking window for HR departments | 180 |
-| `HR_DEPARTMENTS` | Department names treated as HR (partial match, comma-separated) | HR,Human Resources,Recruiting,People,Talent |
+| `CHECKLOGIN_URL` | `/checklogin` endpoint in production | (empty) |
+| `MOCK_USER_NAME` | Name used by mock auth | Taro Yamada |
+| `MOCK_USER_DEPARTMENT` | Department used by mock auth | General Affairs |
+| `SLOT_MINUTES` | Booking increment | 10 |
+| `BUSINESS_START_HOUR` / `BUSINESS_END_HOUR` | Bookable hours | 7 / 21 |
+| `BOOKING_WINDOW_DEFAULT_DAYS` / `BOOKING_WINDOW_HR_DAYS` | Booking window, days ahead | 90 / 180 |
+| `HR_DEPARTMENTS` | Department names counted as HR, comma-separated, partial match | HR,Human Resources,Recruiting,People,Talent |
 
 ## Authentication
 
-- During development, `AUTH_MODE=mock`: `MOCK_USER_NAME` / `MOCK_USER_DEPARTMENT` from `.env`
-  are treated as the logged-in user.
-- In production, set `AUTH_MODE=checklogin` and use the existing `/checklogin` mechanism
-  (reverse proxy / session) for the verified user. The integration point is
-  `src/middleware/auth.js`.
+`AUTH_MODE=mock` during development — `MOCK_USER_NAME` / `MOCK_USER_DEPARTMENT`
+from `.env` stand in for a logged-in user. In production, switch to
+`AUTH_MODE=checklogin` and wire the existing `/checklogin` mechanism through
+`src/middleware/auth.js`.
 
-### Cancellation permissions (current behavior)
+Cancellation currently has no permission check — anyone can cancel any booking.
+It's a soft delete (status becomes `cancelled`, the row stays for analytics) so
+the slot frees up and it drops off the schedule but the history is kept. A rule
+like "HR can cancel anything, others only their own" isn't in yet; it belongs
+together with the real `/checklogin` auth, once who's logged in is actually known.
 
-- There is currently **no permission check**: anyone can cancel any booking.
-- Cancellation is a **soft delete**: the booking's `status` becomes `cancelled` (the row is
-  kept for analytics). Cancelled bookings free the slot and are hidden from the schedule.
-- The rule "HR departments can cancel any booking / others can cancel only their own" is
-  **not yet implemented**. It should be added together with `/checklogin` auth, once the
-  logged-in user is reliably known.
-
-## API overview
+## API
 
 | Method | Path | Description |
 | --- | --- | --- |
 | GET | `/api/config` | Booking rules, business hours, version |
-| GET | `/api/auth/me` | Logged-in user info |
+| GET | `/api/auth/me` | Logged-in user |
 | GET | `/api/rooms` | List rooms (`?all=1` includes disabled) |
-| POST | `/api/rooms` | Create a room |
-| PUT | `/api/rooms/:id` | Update a room |
-| DELETE | `/api/rooms/:id` | Disable a room (soft delete) |
-| GET | `/api/availability?start_at=&end_at=` | Available / busy rooms for a time slot |
-| GET | `/api/bookings` | List bookings (filter by `room_id` / `from` / `to` / `status`; confirmed only by default) |
-| POST | `/api/bookings` | Create a booking |
-| PUT | `/api/bookings/:id` | Update a booking |
-| DELETE | `/api/bookings/:id` | Cancel a booking (soft delete) |
-| GET | `/api/stats?from=&to=` | Utilization / usage statistics for a date range |
+| POST | `/api/rooms` | Create room |
+| PUT | `/api/rooms/:id` | Update room |
+| DELETE | `/api/rooms/:id` | Disable room |
+| GET | `/api/availability?start_at=&end_at=` | Free/busy rooms for a slot |
+| GET | `/api/bookings` | List bookings (`room_id` / `from` / `to` / `status`; confirmed only unless `status=all`) |
+| POST | `/api/bookings` | Create booking |
+| PUT | `/api/bookings/:id` | Update booking |
+| DELETE | `/api/bookings/:id` | Cancel booking |
+| GET | `/api/stats?from=&to=` | Utilization stats for a date range |
 
-## Deployment (Render / free plan)
+## Deploying to Render (free plan)
 
-Because it includes a backend (Express + SQLite), static hosting won't work. Use the
-included `render.yaml` (Blueprint) to deploy to Render.
+Needs a backend (Express + SQLite), so static hosting won't work. Use the included
+`render.yaml`:
 
-1. https://dashboard.render.com/ → **New** → **Blueprint**
-2. Select this repository (`render.yaml` is picked up)
-3. After a few minutes it is served at `https://<service-name>.onrender.com`
+1. dashboard.render.com → New → Blueprint
+2. pick this repo
+3. it's live at `https://<service-name>.onrender.com` a few minutes later
 
-Notes:
-- Node is pinned via `.node-version` (22.22.2, the current LTS) so better-sqlite3 installs
-  a prebuilt binary instead of compiling from source.
-- The free plan sleeps when idle and its disk is ephemeral. On redeploy/wake the booking
-  data resets and the default rooms are auto-seeded on startup. To persist bookings, use a
-  Render Disk (paid): enable the disk section in `render.yaml` and set `DB_PATH` to
-  `/data/booking.db`.
+Node version is pinned via `.node-version` so better-sqlite3 gets a prebuilt
+binary instead of compiling. The free plan sleeps when idle and its disk is
+ephemeral — bookings reset on redeploy/wake and default rooms get reseeded. For
+persistence, add a paid Render Disk and point `DB_PATH` at the mounted path.
 
 ## Operations: updating without losing bookings
 
-Booking data lives in a single SQLite file, kept outside the application code by
-default. Updates replace the app directory only — they never touch that file — so
-bookings survive as long as the two stay apart, which requires no setup.
+The database defaults to a sibling directory next to the app folder —
+`meeting-room-booking-data/booking.db` sitting alongside `meeting-room-booking/` —
+computed from where the app itself is installed. No config needed, and it means a
+routine "swap in the new version" deploy, which replaces the app directory
+wholesale, never touches the data. Only set `DB_PATH` if you actually want the
+file somewhere specific; if it ever resolves back inside the app directory the
+app prints a warning on startup so that doesn't happen silently.
 
-### Where the database lives (no setup needed)
-
-With `DB_PATH` unset, the app automatically stores the database in a sibling
-directory next to the app folder, e.g.:
-
-```
-.../meeting-room-booking/        ← app code (replaced wholesale on updates)
-.../meeting-room-booking-data/   ← booking.db (untouched by updates)
-```
-
-This is computed from the app's own install location, so it works out of the box
-on any server without IT needing to configure a path. Only set `DB_PATH` explicitly
-if you want the file somewhere specific (a different disk, shared storage, etc.):
+Update procedure:
 
 ```bash
-# .env — optional override; must be an absolute path outside the app directory
-DB_PATH=/var/lib/meeting-room/booking.db
-BACKUP_DIR=/var/backups/meeting-room
+npm run backup      # snapshot, safe to run while serving traffic
+# swap in the new app files
+npm ci
+# restart however you normally do (systemd / pm2 / container)
 ```
 
-If `DB_PATH` is ever set to a path that resolves inside the app directory, the app
-prints a startup warning so the misconfiguration doesn't go unnoticed.
+No manual database step. Schema changes ship as migrations tracked by SQLite's
+`user_version` — each one runs once, in a transaction, and only adds to what's
+there, so an update never means recreating the database. The log line on boot
+(`Database migrated 1 -> 2`) tells you it ran. Adding a schema change later means
+appending a new entry to `src/db/migrations.js`; existing entries shouldn't be
+edited or renumbered, since a database that already applied one would just skip it.
 
-### Update procedure
-
-```bash
-npm run backup            # 1. snapshot first (safe while the app is running)
-# 2. replace the application files with the new version
-npm ci                    # 3. install dependencies for the new version
-# 4. restart the service (systemd / pm2 / container)
-```
-
-On startup the app reports the schema version it moved to, for example
-`Database migrated 1 -> 2`. No manual database step is ever required.
-
-### Schema migrations
-
-Schema changes ship as incremental migrations tracked by SQLite's `user_version`.
-Each migration runs **once per database**, in order, inside a transaction, and only
-ever adds to what is already there — so upgrading never means recreating the
-database. A failed migration rolls back and leaves the version unchanged.
-
-To add a schema change in a future release, append a new entry to
-`src/db/migrations.js` with the next version number. Never edit or renumber an
-existing entry: databases that already applied it would skip the change.
-
-### Backups
-
-```bash
-npm run backup            # writes BACKUP_DIR/booking-YYYYMMDD-HHMMSS.db
-```
-
-Uses SQLite's online backup API, so it produces a consistent copy without stopping
-the app and can be scheduled with cron. The newest `BACKUP_KEEP` files are kept
-(default 14) and older ones are removed automatically.
-
-To restore, stop the app, copy a backup file over `DB_PATH`, and start it again.
+Backups (`npm run backup`) use SQLite's online backup API, so they're consistent
+even while the app is live — fine to put on a cron job. Old ones beyond
+`BACKUP_KEEP` get pruned automatically. To restore, stop the app, copy a backup
+over `DB_PATH`, start it back up.
 
 ## Project structure
 
 ```
 src/
-  server.js               Entry point
-  config.js               .env loading / configuration
+  server.js               entry point
+  config.js                .env loading / config
   db/
-    index.js              SQLite connection, migrations on boot, startup auto-seed
-    migrations.js         Incremental schema migrations (tracked by user_version)
-    schema.sql            Baseline schema (migration 1)
-    defaultRooms.js       Default room definitions (shared by auto-seed and seed)
-    init.js               Report/apply schema version (npm run init-db)
-    seed.js               Insert default rooms (npm run seed)
-    backup.js             Timestamped online backup + retention (npm run backup)
-  middleware/auth.js      Auth (mock / checklogin)
+    index.js              connection, migrations, startup seed
+    migrations.js         schema migrations (user_version)
+    schema.sql             baseline schema
+    defaultRooms.js       default room list
+    init.js                 report/apply schema version
+    seed.js                 seed default rooms
+    backup.js               timestamped backup + retention
+  middleware/auth.js       mock / checklogin
   routes/
-    auth.js               /api/auth
-    rooms.js              /api/rooms
-    bookings.js           /api/bookings (overlap-prevention transaction)
-    availability.js       /api/availability (availability search)
-    stats.js              /api/stats (utilization / usage analytics)
+    auth.js, rooms.js, bookings.js, availability.js, stats.js
   services/
-    bookingRules.js       Booking rules (slot, business hours, dept windows, validation)
+    bookingRules.js         slot/hours/window validation
 public/
-  index.html / app.js     Booking page (form + schedule + availability filtering)
-  rooms.html / rooms.js   Rooms page (room management)
-  stats.html / stats.js   Analytics page (utilization, department usage, heatmap)
-  timeline.css            Schedule styles
-  vendor/                 Bootstrap 5 (vendored)
+  index.html / app.js       booking + schedule + availability
+  rooms.html / rooms.js     room management
+  stats.html / stats.js     analytics
+  vendor/                    Bootstrap 5
 ```
-
-## Notes
-
-- Minimal footprint for easy IT review: runtime dependencies are only `express`,
-  `dotenv` and `better-sqlite3`. No external services or outbound network calls are
-  required at runtime, and all frontend assets (Bootstrap) are vendored locally
-  (Bootstrap is a devDependency used only to refresh those vendored files).
