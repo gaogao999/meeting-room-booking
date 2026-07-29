@@ -60,8 +60,8 @@ const config = {
   booking: {
     slotMinutes: toInt(process.env.SLOT_MINUTES, 10),
     // Selectable business hours (24h). Bookings and the schedule are limited to this range.
-    businessStartHour: toInt(process.env.BUSINESS_START_HOUR, 7),
-    businessEndHour: toInt(process.env.BUSINESS_END_HOUR, 21),
+    businessStartHour: toInt(process.env.BUSINESS_START_HOUR, 8),
+    businessEndHour: toInt(process.env.BUSINESS_END_HOUR, 20),
     windowDefaultDays: toInt(process.env.BOOKING_WINDOW_DEFAULT_DAYS, 90),
     windowHrDays: toInt(process.env.BOOKING_WINDOW_HR_DAYS, 180),
     hrDepartments: toList(process.env.HR_DEPARTMENTS).length
