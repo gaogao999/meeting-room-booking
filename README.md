@@ -7,8 +7,6 @@ Current version: v1.1.0. UI is in English.
 
 ## Features
 
-- Room management (`Rooms` page) — register rooms with name, location, capacity,
-  description; disable/enable them.
 - Booking flow (`Booking` page) — choose a date and start/end time, pick from the
   rooms actually available for that slot, department and name are pre-filled from
   the logged-in user. Bookings are in 10-minute increments and record department
@@ -43,21 +41,34 @@ cp .env.example .env
 npm start
 ```
 
-Then open http://localhost:3000. Rooms are seeded automatically on first run if
-the table is empty, so `npm run seed` usually isn't needed — it's there if you
-want to reseed explicitly. `npm run dev` restarts on file changes.
+Then open http://localhost:3000 — rooms are created automatically on first run.
+`npm run dev` restarts on file changes.
 
-## Default rooms
+## Rooms
 
-Seeded on first run, ordered by location then name:
+Rooms are configured in code, in `src/db/roomCatalog.js`, and are not editable
+from the running app. There is no admin screen and no write API for them, so
+nobody can rename or remove a room by accident, and the app needs no permission
+model to protect it.
+
+Currently:
 
 | Location | Rooms |
 | --- | --- |
 | Factory 1 | Conference room 1 / Conference room 2 / Meeting space 1 / Meeting space 2 / Meeting space 3 |
 | Factory 2 | Conference room 1 / Meeting room 1 / Meeting room 2 / Meeting room 3 |
 
-Room names only need to be unique within a location, so "Conference room 1" can
-exist in both factories.
+To change them, edit the catalog and deploy. On startup the database is
+reconciled against the list: new entries are added, capacity/description changes
+are applied, and a room dropped from the catalog is disabled rather than deleted,
+so it disappears from booking and the schedule while its past bookings stay in
+the analytics. Restarting with no catalog change does nothing. The startup log
+says what changed (`Rooms added: …`, `Rooms disabled: …`).
+
+Rooms are identified by name + location, so renaming one is treated as removing
+the old and adding a new one — the old room's bookings stay under the old name.
+Names only need to be unique within a location, which is why "Conference room 1"
+can exist in both factories.
 
 ## Environment variables
 
@@ -96,10 +107,7 @@ together with the real `/checklogin` auth, once who's logged in is actually know
 | --- | --- | --- |
 | GET | `/api/config` | Booking rules, business hours, version |
 | GET | `/api/auth/me` | Logged-in user |
-| GET | `/api/rooms` | List rooms (`?all=1` includes disabled) |
-| POST | `/api/rooms` | Create room |
-| PUT | `/api/rooms/:id` | Update room |
-| DELETE | `/api/rooms/:id` | Disable room |
+| GET | `/api/rooms` | List rooms (`?all=1` includes disabled). Read-only — rooms come from the catalog |
 | GET | `/api/availability?start_at=&end_at=` | Free/busy rooms for a slot |
 | GET | `/api/bookings` | List bookings (`room_id` / `from` / `to` / `status`; confirmed only unless `status=all`) |
 | POST | `/api/bookings` | Create booking |
@@ -159,21 +167,19 @@ src/
   server.js               entry point
   config.js                .env loading / config
   db/
-    index.js              connection, migrations, startup seed
+    index.js              connection, migrations, room sync on boot
     migrations.js         schema migrations (user_version)
     schema.sql             baseline schema
-    defaultRooms.js       default room list
+    roomCatalog.js        the room list + sync (edit this to change rooms)
     init.js                 report/apply schema version
-    seed.js                 seed default rooms
     backup.js               timestamped backup + retention
   middleware/auth.js       mock / checklogin
   routes/
-    auth.js, rooms.js, bookings.js, availability.js, stats.js
+    auth.js, rooms.js (read-only), bookings.js, availability.js, stats.js
   services/
     bookingRules.js         slot/hours/window validation
 public/
   index.html / app.js       booking + schedule + availability
-  rooms.html / rooms.js     room management
   stats.html / stats.js     analytics
   vendor/                    Bootstrap 5
 ```

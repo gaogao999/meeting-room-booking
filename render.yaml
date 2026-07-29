@@ -8,7 +8,7 @@
 # 注意（無料プラン）:
 #   - 一定時間アクセスが無いとスリープし、次アクセス時に数十秒かけて復帰します。
 #   - ディスクは一時的です。再デプロイ/スリープ復帰で SQLite の予約データはリセットされ、
-#     起動時に buildCommand の seed でサンプル会議室が再投入されます。
+#     起動時にカタログから会議室が再作成されます。
 #   - 予約データを永続化したい場合は下部「永続ディスク」のコメントを有効化してください
 #     （Render の Disk は有料プランが必要です）。
 services:
@@ -16,8 +16,8 @@ services:
     name: meeting-room-booking
     runtime: node
     plan: free
-    # DB を初期化しサンプル会議室を投入してから起動する
-    buildCommand: npm install && npm run seed
+    # 会議室は起動時にカタログ(src/db/roomCatalog.js)から自動で同期される
+    buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /healthz
     autoDeploy: true

@@ -38,13 +38,13 @@ if (result.applied.length) {
   console.log(`Database migrated ${result.from} -> ${result.to}: ${result.applied.join(', ')}`);
 }
 
-// Seed the default rooms on a brand new database (empty rooms table) so the app
-// is usable immediately without a separate seed step.
-const { count } = db.prepare('SELECT COUNT(*) AS count FROM rooms').get();
-if (count === 0) {
-  const { insertDefaultRooms } = require('./defaultRooms');
-  const inserted = insertDefaultRooms(db);
-  console.log(`Seeded ${inserted} default room(s).`);
+// Rooms are configured in code (src/db/roomCatalog.js), not managed from the
+// running app, so bring the table in line with that list on every boot. This is
+// what makes "edit the catalog, deploy, restart" the way to add or change rooms.
+const { syncRooms } = require('./roomCatalog');
+const rooms = syncRooms(db);
+for (const [action, names] of Object.entries(rooms)) {
+  if (names.length) console.log(`Rooms ${action}: ${names.join(', ')}`);
 }
 
 module.exports = db;

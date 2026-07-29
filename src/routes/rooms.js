@@ -5,6 +5,9 @@ const db = require('../db');
 
 const router = express.Router();
 
+// Read-only. Rooms are configured in src/db/roomCatalog.js and synced on boot,
+// so there is deliberately no way to add or change them over the API.
+
 // List rooms
 router.get('/', (req, res) => {
   const includeInactive = req.query.all === '1';
@@ -22,94 +25,6 @@ router.get('/:id', (req, res) => {
   const room = db.prepare('SELECT * FROM rooms WHERE id = ?').get(req.params.id);
   if (!room) return res.status(404).json({ error: 'Room not found.' });
   res.json(room);
-});
-
-// Create a room
-router.post('/', (req, res) => {
-  const { name, location, capacity, description } = req.body || {};
-  if (!name || !String(name).trim()) {
-    return res.status(400).json({ error: 'Room name is required.' });
-  }
-  const cap = capacity === undefined || capacity === '' ? null : parseInt(capacity, 10);
-  if (cap !== null && (!Number.isFinite(cap) || cap < 0)) {
-    return res.status(400).json({ error: 'Capacity must be a non-negative integer.' });
-  }
-  try {
-    const info = db
-      .prepare(
-        'INSERT INTO rooms (name, location, capacity, description) VALUES (?, ?, ?, ?)'
-      )
-      .run(String(name).trim(), location || null, cap, description || null);
-    const room = db.prepare('SELECT * FROM rooms WHERE id = ?').get(info.lastInsertRowid);
-    res.status(201).json(room);
-  } catch (err) {
-    if (String(err.message).includes('UNIQUE')) {
-      return res.status(409).json({ error: 'A room with the same name already exists in this location.' });
-    }
-    throw err;
-  }
-});
-
-// Update a room
-router.put('/:id', (req, res) => {
-  const room = db.prepare('SELECT * FROM rooms WHERE id = ?').get(req.params.id);
-  if (!room) return res.status(404).json({ error: 'Room not found.' });
-
-  const { name, location, capacity, description, is_active } = req.body || {};
-  const cap =
-    capacity === undefined || capacity === '' ? room.capacity : parseInt(capacity, 10);
-  if (cap !== null && (!Number.isFinite(cap) || cap < 0)) {
-    return res.status(400).json({ error: 'Capacity must be a non-negative integer.' });
-  }
-  try {
-    db.prepare(
-      `UPDATE rooms SET name = ?, location = ?, capacity = ?, description = ?, is_active = ?
-       WHERE id = ?`
-    ).run(
-      name !== undefined ? String(name).trim() : room.name,
-      location !== undefined ? location : room.location,
-      cap,
-      description !== undefined ? description : room.description,
-      is_active !== undefined ? (is_active ? 1 : 0) : room.is_active,
-      req.params.id
-    );
-    const updated = db.prepare('SELECT * FROM rooms WHERE id = ?').get(req.params.id);
-    res.json(updated);
-  } catch (err) {
-    if (String(err.message).includes('UNIQUE')) {
-      return res.status(409).json({ error: 'A room with the same name already exists in this location.' });
-    }
-    throw err;
-  }
-});
-
-// Delete a room (soft delete / disable)
-router.delete('/:id', (req, res) => {
-  const room = db.prepare('SELECT * FROM rooms WHERE id = ?').get(req.params.id);
-  if (!room) return res.status(404).json({ error: 'Room not found.' });
-  db.prepare('UPDATE rooms SET is_active = 0 WHERE id = ?').run(req.params.id);
-  res.json({ ok: true });
-});
-
-// Permanently remove a room (hard delete).
-// Only allowed when the room has no bookings at all (confirmed or cancelled) —
-// deleting it would otherwise cascade-delete that booking history and corrupt
-// analytics. A room with any history should be disabled instead.
-router.delete('/:id/purge', (req, res) => {
-  const room = db.prepare('SELECT * FROM rooms WHERE id = ?').get(req.params.id);
-  if (!room) return res.status(404).json({ error: 'Room not found.' });
-
-  const { count } = db
-    .prepare('SELECT COUNT(*) AS count FROM bookings WHERE room_id = ?')
-    .get(req.params.id);
-  if (count > 0) {
-    return res.status(409).json({
-      error: `This room has ${count} booking(s) on record and cannot be permanently deleted. Disable it instead.`,
-    });
-  }
-
-  db.prepare('DELETE FROM rooms WHERE id = ?').run(req.params.id);
-  res.json({ ok: true });
 });
 
 module.exports = router;
