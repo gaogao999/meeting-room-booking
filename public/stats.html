@@ -48,13 +48,13 @@
     </div>
 
     <div class="row g-4">
-      <div class="col-lg-6">
+      <div class="col-lg-4">
         <div class="card shadow-sm h-100">
           <div class="card-header bg-light fw-bold">Room utilization</div>
           <div class="card-body" id="perRoom"></div>
         </div>
       </div>
-      <div class="col-lg-6">
+      <div class="col-lg-4">
         <div class="card shadow-sm h-100">
           <div class="card-header bg-light fw-bold">Usage by department</div>
           <div class="card-body p-0">
@@ -67,13 +67,14 @@
           </div>
         </div>
       </div>
-    </div>
-
-    <div class="card shadow-sm mt-4">
-      <div class="card-header bg-light fw-bold">Busy times (booked minutes by day &amp; hour)</div>
-      <div class="card-body heat-wrap">
-        <table class="heat" id="heatmap"></table>
-        <div class="form-text mt-2">Darker = more booked. Hover a cell for minutes.</div>
+      <div class="col-lg-4">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-light fw-bold">Busy times (booked minutes by day &amp; hour)</div>
+          <div class="card-body heat-wrap">
+            <table class="heat" id="heatmap"></table>
+            <div class="form-text mt-2">Darker = more booked. Hover a cell for minutes.</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
