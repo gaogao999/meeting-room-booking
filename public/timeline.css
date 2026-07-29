@@ -219,6 +219,8 @@
 /* ---- timeline ---- */
 .timeline {
   overflow: auto;
+  /* shift-clicking a range shouldn't highlight the labels as text */
+  user-select: none;
   max-height: min(72vh, 640px);
   -webkit-overflow-scrolling: touch;
 }

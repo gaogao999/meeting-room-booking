@@ -351,7 +351,9 @@ function renderFreeCells(room, busy) {
             ` title="Free ${fmtMin(a)}–${fmtMin(b)} · ${
               state.selectedRoom === room.id && a === timeMin('endHour', 'endMin')
                 ? 'click to extend to ' + fmtMin(b)
-                : 'click to book ' + escapeHtml(room.name)
+                : state.selectedRoom === room.id && a > timeMin('endHour', 'endMin')
+                  ? 'shift-click to select up to ' + fmtMin(b)
+                  : 'click to book ' + escapeHtml(room.name)
             }">${label}</button>`
         );
       }
@@ -505,16 +507,38 @@ function shiftDay(delta) {
 // where the current selection ends extends it instead, so 8:00 then 9:00 books
 // 08:00-10:00. Anything else (another room, or a gap because the hour between is
 // taken) starts a fresh selection.
-function startFromCell(roomId, startMin, endMin) {
-  const slot = state.config.slotMinutes;
-  const extending =
-    state.selectedRoom === +roomId && startMin === timeMin('endHour', 'endMin');
+// How far the room stays free without a break, starting at `from`. Used to keep a
+// shift-click from spanning an hour someone else has already booked.
+function freeUntil(roomId, from) {
+  const cells = [...document.querySelectorAll(`.tl-free[data-room="${roomId}"]`)]
+    .map((c) => [+c.getAttribute('data-start'), +c.getAttribute('data-end')])
+    .sort((a, b) => a[0] - b[0]);
+  let reach = from;
+  for (const [a, b] of cells) {
+    if (b <= reach) continue;
+    if (a > reach) break; // a booked hour in between
+    reach = b;
+  }
+  return reach;
+}
 
-  let s = extending
-    ? timeMin('startHour', 'startMin')
+function startFromCell(roomId, startMin, endMin, shiftKey = false) {
+  const slot = state.config.slotMinutes;
+  const curStart = timeMin('startHour', 'startMin');
+  const sameRoom = state.selectedRoom === +roomId;
+
+  // Shift-click extends the current selection out to the clicked slot in one go;
+  // a plain click on the slot right after it extends by an hour.
+  const spanning = shiftKey && sameRoom && endMin > curStart;
+  const extending = sameRoom && startMin === timeMin('endHour', 'endMin');
+
+  let s = spanning || extending
+    ? curStart
     : Math.max(DAY_START, Math.floor(startMin / slot) * slot);
   s = Math.min(s, DAY_END - slot);
-  const e = Math.min(Math.max(endMin, s + slot), DAY_END);
+  let e = Math.min(Math.max(endMin, s + slot), DAY_END);
+  // Stop at the first booked hour rather than selecting across it.
+  if (spanning) e = Math.min(e, Math.max(freeUntil(roomId, s), s + slot));
   state.selectedRoom = +roomId;
   document.getElementById('date').value = state.date;
   document.getElementById('startHour').value = Math.floor(s / 60);
@@ -600,7 +624,12 @@ async function init() {
     }
     const cell = e.target.closest('.tl-free');
     if (cell) {
-      startFromCell(cell.getAttribute('data-room'), +cell.getAttribute('data-start'), +cell.getAttribute('data-end'));
+      startFromCell(
+        cell.getAttribute('data-room'),
+        +cell.getAttribute('data-start'),
+        +cell.getAttribute('data-end'),
+        e.shiftKey
+      );
     }
   });
 
@@ -615,8 +644,9 @@ async function init() {
     document.getElementById('appVersion').textContent = cfg.version ? `v${cfg.version}` : '';
     document.getElementById('tlRangeNote').textContent =
       `Shown range ${pad(cfg.businessStartHour)}:00–${pad(cfg.businessEndHour)}:00. ` +
-      'Click a booking for details. Click a dashed slot to book that hour, then click ' +
-      'the next one to extend — two clicks book two hours.';
+      'Click a booking for details. Click a dashed slot to book that hour, then ' +
+      'shift-click a later one to select everything up to it (or click the next ' +
+      'slot to extend an hour at a time).';
     if (user.name) {
       document.getElementById('currentUser').hidden = false;
       document.getElementById('userName').textContent = user.name;
