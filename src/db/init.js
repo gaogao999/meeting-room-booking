@@ -1,12 +1,13 @@
 'use strict';
 
-// スキーマを適用してテーブルを作成する。
-// 実行: npm run init-db
-const fs = require('fs');
-const path = require('path');
+// Bring the database schema up to date (creates it if missing).
+// Run: npm run init-db
+//
+// Requiring ./index already applies any pending migrations, so this script just
+// reports the resulting version. It is safe to run against a database that
+// already contains bookings: migrations only add to it.
 const db = require('./index');
+const { latestVersion } = require('./migrations');
 
-const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
-db.exec(schema);
-
-console.log('Database initialized.');
+const version = db.pragma('user_version', { simple: true });
+console.log(`Database schema is at version ${version} (latest: ${latestVersion()}).`);

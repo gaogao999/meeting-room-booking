@@ -30,6 +30,11 @@ const config = {
 
   dbPath: process.env.DB_PATH || './data/booking.db',
 
+  backup: {
+    dir: process.env.BACKUP_DIR || './backups',
+    keep: toInt(process.env.BACKUP_KEEP, 14),
+  },
+
   auth: {
     mode: process.env.AUTH_MODE || 'mock',
     checkloginUrl: process.env.CHECKLOGIN_URL || '',

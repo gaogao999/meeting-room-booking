@@ -15,13 +15,17 @@ const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
-// Ensure the schema exists on every boot (safe: CREATE TABLE IF NOT EXISTS),
-// then seed the default rooms if the table is empty. This guarantees the
-// default rooms appear in any environment (e.g. a fresh Render deploy) without
-// relying on a separate build/seed step.
-const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
-db.exec(schema);
+// Bring the schema up to date on every boot. Migrations are incremental and
+// only ever add to the existing database, so updating the app preserves the
+// bookings already stored in it.
+const { migrate } = require('./migrations');
+const result = migrate(db);
+if (result.applied.length) {
+  console.log(`Database migrated ${result.from} -> ${result.to}: ${result.applied.join(', ')}`);
+}
 
+// Seed the default rooms on a brand new database (empty rooms table) so the app
+// is usable immediately without a separate seed step.
 const { count } = db.prepare('SELECT COUNT(*) AS count FROM rooms').get();
 if (count === 0) {
   const { insertDefaultRooms } = require('./defaultRooms');

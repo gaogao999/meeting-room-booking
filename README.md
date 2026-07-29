@@ -77,7 +77,9 @@ exist in both factories.
 | --- | --- | --- |
 | `PORT` | Listen port | 3000 |
 | `NODE_ENV` | Environment | development |
-| `DB_PATH` | SQLite file path | ./data/booking.db |
+| `DB_PATH` | SQLite file path (in production, set an absolute path **outside** the app directory) | ./data/booking.db |
+| `BACKUP_DIR` | Output directory for `npm run backup` | ./backups |
+| `BACKUP_KEEP` | Number of backups to retain | 14 |
 | `AUTH_MODE` | `mock` or `checklogin` | mock |
 | `CHECKLOGIN_URL` | `/checklogin` endpoint for production | (empty) |
 | `MOCK_USER_NAME` | Name for mock auth | Taro Yamada |
@@ -140,6 +142,59 @@ Notes:
   Render Disk (paid): enable the disk section in `render.yaml` and set `DB_PATH` to
   `/data/booking.db`.
 
+## Operations: updating without losing bookings
+
+Booking data lives in a single SQLite file, entirely separate from the application
+code. Updates replace code only — they never touch that file — so bookings survive
+as long as the two are kept apart.
+
+### One-time setup
+
+Put the database **outside the application directory** and point `DB_PATH` at it.
+If the file stays under `./data`, replacing the app folder during an update deletes
+the bookings with it.
+
+```bash
+# .env — use an absolute path outside the app directory
+DB_PATH=/var/lib/meeting-room/booking.db
+BACKUP_DIR=/var/backups/meeting-room
+```
+
+### Update procedure
+
+```bash
+npm run backup            # 1. snapshot first (safe while the app is running)
+# 2. replace the application files with the new version
+npm ci                    # 3. install dependencies for the new version
+# 4. restart the service (systemd / pm2 / container)
+```
+
+On startup the app reports the schema version it moved to, for example
+`Database migrated 1 -> 2`. No manual database step is ever required.
+
+### Schema migrations
+
+Schema changes ship as incremental migrations tracked by SQLite's `user_version`.
+Each migration runs **once per database**, in order, inside a transaction, and only
+ever adds to what is already there — so upgrading never means recreating the
+database. A failed migration rolls back and leaves the version unchanged.
+
+To add a schema change in a future release, append a new entry to
+`src/db/migrations.js` with the next version number. Never edit or renumber an
+existing entry: databases that already applied it would skip the change.
+
+### Backups
+
+```bash
+npm run backup            # writes BACKUP_DIR/booking-YYYYMMDD-HHMMSS.db
+```
+
+Uses SQLite's online backup API, so it produces a consistent copy without stopping
+the app and can be scheduled with cron. The newest `BACKUP_KEEP` files are kept
+(default 14) and older ones are removed automatically.
+
+To restore, stop the app, copy a backup file over `DB_PATH`, and start it again.
+
 ## Project structure
 
 ```
@@ -147,11 +202,13 @@ src/
   server.js               Entry point
   config.js               .env loading / configuration
   db/
-    index.js              SQLite connection, schema apply, startup auto-seed
-    schema.sql            Schema
+    index.js              SQLite connection, migrations on boot, startup auto-seed
+    migrations.js         Incremental schema migrations (tracked by user_version)
+    schema.sql            Baseline schema (migration 1)
     defaultRooms.js       Default room definitions (shared by auto-seed and seed)
-    init.js               Create schema only (npm run init-db)
+    init.js               Report/apply schema version (npm run init-db)
     seed.js               Insert default rooms (npm run seed)
+    backup.js             Timestamped online backup + retention (npm run backup)
   middleware/auth.js      Auth (mock / checklogin)
   routes/
     auth.js               /api/auth
