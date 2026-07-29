@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rooms - Meeting Room Booking</title>
+  <link href="/vendor/bootstrap.min.css" rel="stylesheet" />
+  <link href="/timeline.css" rel="stylesheet" />
+</head>
+<body>
+  <nav class="navbar navbar-dark app-nav">
+    <div class="container-fluid px-3 px-md-4 d-flex align-items-stretch" style="min-height:60px">
+      <a class="navbar-brand d-flex align-items-center me-4" href="/">Meeting Room Booking</a>
+      <div class="d-flex align-items-stretch gap-1">
+        <a class="nav-link" href="/">Booking</a>
+        <a class="nav-link active" href="/rooms.html">Rooms</a>
+        <a class="nav-link" href="/stats.html">Analytics</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container-fluid px-3 px-md-4 my-4">
+    <div class="panel">
+      <div class="panel-head d-flex align-items-center flex-wrap gap-2">
+        <div>
+          <div class="panel-title">Rooms</div>
+          <div class="panel-sub">Configured in the application and applied on deploy.</div>
+        </div>
+        <span class="panel-sub ms-auto" id="roomCount"></span>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Location</th>
+                <th>Room name</th>
+                <th class="text-end">Capacity</th>
+                <th>Description</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="roomList">
+              <tr><td colspan="5" class="text-center text-muted py-4">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <p class="panel-sub mt-2 mb-0">
+      Rooms come from the application configuration (<code>src/db/roomCatalog.js</code>) and are
+      applied on deploy, so they can't be added or changed from this screen. A room removed from
+      the configuration is shown as disabled rather than deleted, which keeps its past bookings
+      in the analytics.
+    </p>
+  </div>
+
+  <script src="/vendor/bootstrap.bundle.min.js"></script>
+  <script src="/rooms.js"></script>
+</body>
+</html>

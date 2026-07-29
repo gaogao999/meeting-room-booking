@@ -5,23 +5,54 @@ const fs = require('fs');
 const Database = require('better-sqlite3');
 const config = require('../config');
 
-const dbPath = path.resolve(process.cwd(), config.dbPath);
-const dbDir = path.dirname(dbPath);
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
+const appDir = path.resolve(__dirname, '..', '..');
+
+function ensureWritableDir(dir) {
+  fs.mkdirSync(dir, { recursive: true });
+  fs.accessSync(dir, fs.constants.W_OK);
 }
 
-// Safety net: warn loudly if the database ended up inside the app directory
-// (e.g. DB_PATH was overridden to a relative path). A deploy that replaces the
-// app directory wholesale would delete it from there. This should not happen
-// with the default configuration, which resolves outside the app directory.
-const appDir = path.resolve(__dirname, '..', '..');
-if (dbPath.startsWith(appDir + path.sep)) {
+// Resolve where the database lives.
+//
+// The default sits outside the app directory so that redeploying (which replaces
+// that directory) can't delete the bookings. On some hosts the parent directory
+// isn't writable, though, so fall back to a directory inside the app rather than
+// failing to boot — a running app with a warning beats a crash loop.
+//
+// An explicitly configured DB_PATH is never relocated: silently writing the data
+// somewhere other than where it was asked to go would be worse than stopping.
+function resolveDbPath() {
+  const configured = path.resolve(process.cwd(), config.dbPath);
+  try {
+    ensureWritableDir(path.dirname(configured));
+    return configured;
+  } catch (err) {
+    if (process.env.DB_PATH) {
+      throw new Error(
+        `Cannot use DB_PATH (${configured}): ${err.message}. ` +
+          'Point it at a directory the app can write to.'
+      );
+    }
+    const fallback = path.join(appDir, 'data', 'booking.db');
+    ensureWritableDir(path.dirname(fallback));
+    console.warn(
+      `\nWARNING: could not use ${path.dirname(configured)} (${err.code || err.message}).\n` +
+        `Falling back to ${path.dirname(fallback)}, inside the app directory.\n` +
+        'A deploy that replaces the app directory will delete the bookings stored there.\n' +
+        'Set DB_PATH to a writable location outside the app directory to avoid that.\n'
+    );
+    return fallback;
+  }
+}
+
+const dbPath = resolveDbPath();
+
+// Warn if the database ended up inside the app directory by explicit
+// configuration, for the same reason as above.
+if (process.env.DB_PATH && dbPath.startsWith(appDir + path.sep)) {
   console.warn(
-    '\n⚠️  WARNING: the database file is inside the application directory:\n' +
-      `   ${dbPath}\n` +
-      '   A deployment that replaces this directory will delete your booking data.\n' +
-      '   Set DB_PATH to a location outside the app directory (see .env.example).\n'
+    `\nWARNING: the database is inside the application directory:\n   ${dbPath}\n` +
+      '   A deploy that replaces this directory will delete the bookings.\n'
   );
 }
 

@@ -16,8 +16,15 @@ services:
     name: meeting-room-booking
     runtime: node
     plan: free
-    # 会議室は起動時にカタログ(src/db/roomCatalog.js)から自動で同期される
-    buildCommand: npm install
+    # npm ci を使う（npm install ではない）。
+    # Render は node_modules をビルド間でキャッシュするため、npm install だと
+    # 既存の node_modules をそのまま使い回す。Node のメジャー版を上げたときに
+    # better-sqlite3 のネイティブバイナリが古い版のまま残り、起動時に
+    # NODE_MODULE_VERSION 不一致でクラッシュする。
+    # npm ci は node_modules を削除してから入れ直すのでこれを防げる。
+    #
+    # 会議室は起動時にカタログ(src/db/roomCatalog.js)から自動で同期される。
+    buildCommand: npm ci
     startCommand: npm start
     healthCheckPath: /healthz
     autoDeploy: true

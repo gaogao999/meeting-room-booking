@@ -50,16 +50,18 @@ Then open http://localhost:3000 — rooms are created automatically on first run
 ## Rooms
 
 Rooms are configured in code, in `src/db/roomCatalog.js`, and are not editable
-from the running app. There is no admin screen and no write API for them, so
-nobody can rename or remove a room by accident, and the app needs no permission
-model to protect it.
+from the running app. The Rooms page lists what's configured but is read-only,
+and there is no write API, so nobody can rename or remove a room by accident and
+the app needs no permission model to protect it.
 
 Currently:
 
 | Location | Rooms |
 | --- | --- |
+| Bangna Office | Meeting room 1 / Meeting room 2 / Meeting room 3 |
 | Factory 1 | Conference room 1 / Conference room 2 / Meeting space 1 / Meeting space 2 / Meeting space 3 |
 | Factory 2 | Conference room 1 / Meeting room 1 / Meeting room 2 / Meeting room 3 |
+| Factory 3 | Conference room 1 |
 
 To change them, edit the catalog and deploy. On startup the database is
 reconciled against the list: new entries are added, capacity/description changes
@@ -151,6 +153,12 @@ npm ci
 # restart however you normally do (systemd / pm2 / container)
 ```
 
+Use `npm ci`, not `npm install`. better-sqlite3 ships a native binary built for
+a specific Node major version, and `npm install` will happily leave an existing
+`node_modules` in place — so after a Node upgrade the app starts and then dies
+with `NODE_MODULE_VERSION 115 ... requires 127`. `npm ci` wipes `node_modules`
+first, so the binary always matches the Node actually running it.
+
 No manual database step. Schema changes ship as migrations tracked by SQLite's
 `user_version` — each one runs once, in a transaction, and only adds to what's
 there, so an update never means recreating the database. The log line on boot
@@ -183,6 +191,7 @@ src/
     bookingRules.js         slot/hours/window validation
 public/
   index.html / app.js       booking + schedule + availability
+  rooms.html / rooms.js     room list (read-only)
   stats.html / stats.js     analytics
   vendor/                    Bootstrap 5
 ```

@@ -5,73 +5,94 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Analytics - Meeting Room Booking</title>
   <link href="/vendor/bootstrap.min.css" rel="stylesheet" />
+  <link href="/timeline.css" rel="stylesheet" />
   <style>
-    .stat-tile { border: 1px solid #e9ecef; border-radius: 8px; padding: 14px 16px; height: 100%; }
-    .stat-tile .val { font-size: 1.6rem; font-weight: 700; line-height: 1.1; }
-    .stat-tile .lbl { color: #6c757d; font-size: 0.8rem; }
-    .util-bar { background: #eef2f7; border-radius: 4px; height: 18px; overflow: hidden; }
-    .util-bar > span { display: block; height: 100%; background: #0d6efd; }
-    .heat td, .heat th { text-align: center; font-size: 0.72rem; padding: 2px 4px; border: 1px solid #f0f0f0; }
-    .heat th { color: #6c757d; font-weight: 600; }
-    .heat .rowlbl { text-align: right; color: #495057; font-weight: 600; white-space: nowrap; }
+    .tile { border: 1px solid #dbe1e8; border-radius: 11px; padding: 16px 18px; height: 100%; }
+    .tile .lbl { font-size: 12.5px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: #89939f; }
+    .tile .val { font-size: 30px; font-weight: 700; color: #16202b; line-height: 1.15; margin-top: 6px; font-variant-numeric: tabular-nums; }
+    /* Room utilization: one collapsible section per location */
+    .util-grid { display: grid; grid-template-columns: 14px 1fr 96px 46px; align-items: center; gap: 10px; }
+    .util-loc { width: 100%; text-align: left; border: none; border-top: 1px solid #edf0f4; background: #fff; padding: 10px 18px; cursor: pointer; }
+    .util-loc:hover { background: #f7f9fb; }
+    .util-loc .chev { font-size: 11px; color: #89939f; }
+    .util-loc .nm { font-size: 14px; font-weight: 600; color: #16202b; }
+    .util-loc .pct { font-size: 13.5px; font-weight: 600; color: #3a444f; text-align: right; font-variant-numeric: tabular-nums; }
+    .util-rooms { background: #fbfcfd; padding: 4px 0; }
+    .util-room { padding: 6px 18px; }
+    .util-room .nm { font-size: 13.5px; color: #3a444f; }
+    .util-room .pct { font-size: 13px; color: #5c6672; text-align: right; font-variant-numeric: tabular-nums; }
+    .bar { background: #eef2f7; border-radius: 5px; height: 10px; overflow: hidden; }
+    .bar.sm { height: 8px; background: #e8edf3; border-radius: 4px; }
+    .bar > span { display: block; height: 100%; border-radius: inherit; }
+    /* Usage by department: fixed columns so every bar starts and ends on the same line */
+    .dept-row { display: grid; grid-template-columns: 10px 148px 1fr 62px; align-items: center; gap: 10px; padding: 8px 18px; }
+    .dept-row .nm { font-size: 14px; color: #16202b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .dept-row .h { font-size: 13.5px; color: #5c6672; text-align: right; font-variant-numeric: tabular-nums; }
+    .dept-row .sw { width: 10px; height: 10px; border-radius: 3px; }
+    .heat { border-collapse: separate; border-spacing: 3px; }
+    .heat th { font-size: 11.5px; font-weight: 600; color: #89939f; text-align: center; padding: 0 0 3px; font-variant-numeric: tabular-nums; }
+    .heat td { width: 26px; height: 26px; border-radius: 5px; text-align: center; font-size: 11px; font-variant-numeric: tabular-nums; }
+    .heat .rowlbl { font-size: 12.5px; font-weight: 600; color: #5c6672; text-align: right; padding-right: 7px; white-space: nowrap; background: none; width: auto; }
     .heat-wrap { overflow-x: auto; }
+    .heat-scale { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #7a848f; }
+    .heat-scale span.sw { width: 14px; height: 14px; border-radius: 3px; }
   </style>
 </head>
 <body>
-  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-    <div class="container-fluid px-2 px-md-4">
-      <a class="navbar-brand" href="/">Meeting Room Booking</a>
-      <div class="navbar-nav me-auto ms-3">
+  <nav class="navbar navbar-dark app-nav">
+    <div class="container-fluid px-3 px-md-4 d-flex align-items-stretch" style="min-height:60px">
+      <a class="navbar-brand d-flex align-items-center me-4" href="/">Meeting Room Booking</a>
+      <div class="d-flex align-items-stretch gap-1">
         <a class="nav-link" href="/">Booking</a>
+        <a class="nav-link" href="/rooms.html">Rooms</a>
         <a class="nav-link active" href="/stats.html">Analytics</a>
       </div>
     </div>
   </nav>
 
-  <div class="container-fluid px-2 px-md-4 my-4">
-    <div class="card shadow-sm mb-4">
-      <div class="card-header bg-light d-flex align-items-center flex-wrap gap-2">
-        <span class="fw-bold">Utilization &amp; Usage</span>
-        <div class="ms-auto d-flex align-items-end gap-2 flex-wrap">
-          <div><label class="form-label mb-0 small">From</label>
-            <input type="date" class="form-control form-control-sm" id="from" /></div>
-          <div><label class="form-label mb-0 small">To</label>
-            <input type="date" class="form-control form-control-sm" id="to" /></div>
-          <button class="btn btn-sm btn-primary" id="apply">Apply</button>
-        </div>
+  <div class="container-fluid px-3 px-md-4 my-4">
+    <div class="d-flex align-items-end flex-wrap gap-3 mb-3">
+      <div>
+        <div class="panel-title" style="font-size:19px">Utilization &amp; usage</div>
+        <div class="panel-sub" id="rangeNote"></div>
       </div>
-      <div class="card-body">
-        <div class="row g-3" id="tiles"></div>
-        <div class="form-text mt-2" id="rangeNote"></div>
+      <div class="ms-auto d-flex align-items-end gap-2 flex-wrap">
+        <div>
+          <label class="form-label mb-1 small" for="from">From</label>
+          <input type="date" class="form-control form-control-sm" id="from" />
+        </div>
+        <div>
+          <label class="form-label mb-1 small" for="to">To</label>
+          <input type="date" class="form-control form-control-sm" id="to" />
+        </div>
+        <button class="btn btn-primary" id="apply">Apply</button>
       </div>
     </div>
 
+    <div class="row g-3 mb-4" id="tiles"></div>
+
     <div class="row g-4">
       <div class="col-lg-4">
-        <div class="card shadow-sm h-100">
-          <div class="card-header bg-light fw-bold">Room utilization</div>
-          <div class="card-body" id="perRoom"></div>
+        <div class="panel h-100">
+          <div class="panel-head"><span class="panel-title" style="font-size:15px">Room utilization</span></div>
+          <div id="perRoom"></div>
         </div>
       </div>
       <div class="col-lg-4">
-        <div class="card shadow-sm h-100">
-          <div class="card-header bg-light fw-bold">Usage by department</div>
-          <div class="card-body p-0">
-            <div class="table-responsive">
-              <table class="table table-sm mb-0 align-middle">
-                <thead class="table-light"><tr><th>Department</th><th class="text-end">Bookings</th><th class="text-end">Hours</th></tr></thead>
-                <tbody id="byDept"></tbody>
-              </table>
-            </div>
+        <div class="panel h-100">
+          <div class="panel-head"><span class="panel-title" style="font-size:15px">Usage by department</span></div>
+          <div class="py-1" id="byDept"></div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="panel h-100">
+          <div class="panel-head d-flex align-items-center gap-3">
+            <span class="panel-title" style="font-size:15px">Busy times</span>
+            <span class="heat-scale ms-auto" id="heatScale"></span>
           </div>
-        </div>
-      </div>
-      <div class="col-lg-4">
-        <div class="card shadow-sm h-100">
-          <div class="card-header bg-light fw-bold">Busy times (booked minutes by day &amp; hour)</div>
           <div class="card-body heat-wrap">
             <table class="heat" id="heatmap"></table>
-            <div class="form-text mt-2">Darker = more booked. Hover a cell for minutes.</div>
+            <div class="panel-sub mt-2">Booked minutes per weekday and hour. Hover a cell for the exact figure.</div>
           </div>
         </div>
       </div>
