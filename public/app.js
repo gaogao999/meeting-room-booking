@@ -349,11 +349,9 @@ function renderFreeCells(room, busy) {
             ` style="left:${((a - DAY_START) / SPAN) * 100}%;width:calc(${((b - a) / SPAN) * 100}% - 3px)"` +
             ` data-room="${room.id}" data-start="${a}" data-end="${b}"` +
             ` title="Free ${fmtMin(a)}–${fmtMin(b)} · ${
-              state.selectedRoom === room.id && a === timeMin('endHour', 'endMin')
-                ? 'click to extend to ' + fmtMin(b)
-                : state.selectedRoom === room.id && a > timeMin('endHour', 'endMin')
-                  ? 'shift-click to select up to ' + fmtMin(b)
-                  : 'click to book ' + escapeHtml(room.name)
+              state.selectedRoom === room.id && a >= timeMin('endHour', 'endMin')
+                ? 'shift-click to select up to ' + fmtMin(b)
+                : 'click to book ' + escapeHtml(room.name)
             }">${label}</button>`
         );
       }
@@ -502,11 +500,6 @@ function shiftDay(delta) {
   loadTimeline();
 }
 
-// Click a free cell -> that room + date + exactly that hour, then re-check availability
-// Clicking a free slot selects that hour. Clicking the slot that starts exactly
-// where the current selection ends extends it instead, so 8:00 then 9:00 books
-// 08:00-10:00. Anything else (another room, or a gap because the hour between is
-// taken) starts a fresh selection.
 // How far the room stays free without a break, starting at `from`. Used to keep a
 // shift-click from spanning an hour someone else has already booked.
 function freeUntil(roomId, from) {
@@ -522,17 +515,14 @@ function freeUntil(roomId, from) {
   return reach;
 }
 
+// A plain click always starts a fresh one-hour selection on that slot.
+// Shift-clicking a later slot in the same room stretches the selection out to it.
 function startFromCell(roomId, startMin, endMin, shiftKey = false) {
   const slot = state.config.slotMinutes;
   const curStart = timeMin('startHour', 'startMin');
-  const sameRoom = state.selectedRoom === +roomId;
+  const spanning = shiftKey && state.selectedRoom === +roomId && endMin > curStart;
 
-  // Shift-click extends the current selection out to the clicked slot in one go;
-  // a plain click on the slot right after it extends by an hour.
-  const spanning = shiftKey && sameRoom && endMin > curStart;
-  const extending = sameRoom && startMin === timeMin('endHour', 'endMin');
-
-  let s = spanning || extending
+  let s = spanning
     ? curStart
     : Math.max(DAY_START, Math.floor(startMin / slot) * slot);
   s = Math.min(s, DAY_END - slot);
@@ -645,8 +635,7 @@ async function init() {
     document.getElementById('tlRangeNote').textContent =
       `Shown range ${pad(cfg.businessStartHour)}:00–${pad(cfg.businessEndHour)}:00. ` +
       'Click a booking for details. Click a dashed slot to book that hour, then ' +
-      'shift-click a later one to select everything up to it (or click the next ' +
-      'slot to extend an hour at a time).';
+      'shift-click a later one to select everything up to it.';
     if (user.name) {
       document.getElementById('currentUser').hidden = false;
       document.getElementById('userName').textContent = user.name;
