@@ -151,6 +151,12 @@ npm ci
 # restart however you normally do (systemd / pm2 / container)
 ```
 
+Use `npm ci`, not `npm install`. better-sqlite3 ships a native binary built for
+a specific Node major version, and `npm install` will happily leave an existing
+`node_modules` in place — so after a Node upgrade the app starts and then dies
+with `NODE_MODULE_VERSION 115 ... requires 127`. `npm ci` wipes `node_modules`
+first, so the binary always matches the Node actually running it.
+
 No manual database step. Schema changes ship as migrations tracked by SQLite's
 `user_version` — each one runs once, in a transaction, and only adds to what's
 there, so an update never means recreating the database. The log line on boot
