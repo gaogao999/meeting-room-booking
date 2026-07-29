@@ -83,11 +83,32 @@ router.put('/:id', (req, res) => {
   }
 });
 
-// Delete a room (soft delete)
+// Delete a room (soft delete / disable)
 router.delete('/:id', (req, res) => {
   const room = db.prepare('SELECT * FROM rooms WHERE id = ?').get(req.params.id);
   if (!room) return res.status(404).json({ error: 'Room not found.' });
   db.prepare('UPDATE rooms SET is_active = 0 WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+
+// Permanently remove a room (hard delete).
+// Only allowed when the room has no bookings at all (confirmed or cancelled) —
+// deleting it would otherwise cascade-delete that booking history and corrupt
+// analytics. A room with any history should be disabled instead.
+router.delete('/:id/purge', (req, res) => {
+  const room = db.prepare('SELECT * FROM rooms WHERE id = ?').get(req.params.id);
+  if (!room) return res.status(404).json({ error: 'Room not found.' });
+
+  const { count } = db
+    .prepare('SELECT COUNT(*) AS count FROM bookings WHERE room_id = ?')
+    .get(req.params.id);
+  if (count > 0) {
+    return res.status(409).json({
+      error: `This room has ${count} booking(s) on record and cannot be permanently deleted. Disable it instead.`,
+    });
+  }
+
+  db.prepare('DELETE FROM rooms WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
 });
 

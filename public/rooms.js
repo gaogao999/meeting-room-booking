@@ -29,6 +29,7 @@ function resetForm() {
   document.getElementById('formTitle').textContent = 'Add Room';
   document.getElementById('submitBtn').textContent = 'Add';
   document.getElementById('cancelEdit').classList.add('d-none');
+  document.getElementById('deleteZone').classList.add('d-none');
 }
 
 async function loadRooms() {
@@ -73,7 +74,23 @@ function editRoom(room) {
   document.getElementById('formTitle').textContent = `Edit Room: ${room.name}`;
   document.getElementById('submitBtn').textContent = 'Update';
   document.getElementById('cancelEdit').classList.remove('d-none');
+  document.getElementById('deleteZone').classList.remove('d-none');
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function deleteRoom() {
+  const id = document.getElementById('roomId').value;
+  if (!id) return;
+  const name = document.getElementById('name').value;
+  if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
+  try {
+    await api(`/api/rooms/${id}/purge`, { method: 'DELETE' });
+    showAlert('Room deleted.', 'success');
+    resetForm();
+    loadRooms();
+  } catch (err) {
+    showAlert(err.message);
+  }
 }
 
 async function submitRoom(e) {
@@ -119,6 +136,7 @@ async function setActive(id, active) {
 function init() {
   document.getElementById('roomForm').addEventListener('submit', submitRoom);
   document.getElementById('cancelEdit').addEventListener('click', resetForm);
+  document.getElementById('deleteBtn').addEventListener('click', deleteRoom);
   document.getElementById('roomList').addEventListener('click', (e) => {
     const editData = e.target.getAttribute('data-edit');
     const deleteId = e.target.getAttribute('data-delete');
