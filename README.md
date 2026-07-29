@@ -50,9 +50,9 @@ Then open http://localhost:3000 — rooms are created automatically on first run
 ## Rooms
 
 Rooms are configured in code, in `src/db/roomCatalog.js`, and are not editable
-from the running app. There is no admin screen and no write API for them, so
-nobody can rename or remove a room by accident, and the app needs no permission
-model to protect it.
+from the running app. The Rooms page lists what's configured but is read-only,
+and there is no write API, so nobody can rename or remove a room by accident and
+the app needs no permission model to protect it.
 
 Currently:
 
@@ -189,6 +189,7 @@ src/
     bookingRules.js         slot/hours/window validation
 public/
   index.html / app.js       booking + schedule + availability
+  rooms.html / rooms.js     room list (read-only)
   stats.html / stats.js     analytics
   vendor/                    Bootstrap 5
 ```
