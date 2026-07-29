@@ -6,7 +6,7 @@
 :root {
   --tl-room-w: 172px;
   --tl-hour-w: 60px;
-  --tl-row-h: 46px;
+  --tl-row-h: 42px;
   --line: #dbe1e8;
   --line-soft: #edf0f4;
   --ink: #16202b;
@@ -78,7 +78,7 @@
   overflow: clip; /* clip, NOT hidden: hidden would break position:sticky */
 }
 .panel-head {
-  padding: 14px 18px;
+  padding: 10px 18px;
   border-bottom: 1px solid #e6eaef;
   background: #f7f9fb;
 }
@@ -121,7 +121,7 @@
   #timeline {
     flex: 1 1 auto;
     min-height: 260px;
-    max-height: calc(100vh - 330px);
+    max-height: calc(100vh - 300px);
   }
 }
 
@@ -130,7 +130,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 .step .num {
   width: 24px;
@@ -163,7 +163,7 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--ink-2);
-  margin-bottom: 6px;
+  margin-bottom: 3px;
 }
 /* 16px inputs: prevents iOS zoom-on-focus and stays legible on the factory floor */
 .form-control,
@@ -173,7 +173,7 @@
 }
 .btn-book {
   width: 100%;
-  height: 52px;
+  height: 46px;
   border-radius: 10px;
   border: none;
   font-size: 17px;
@@ -189,7 +189,7 @@
   display: flex;
   gap: 8px;
   align-items: flex-start;
-  margin-top: 12px;
+  margin-top: 8px;
   font-size: 12.5px;
   color: #68727e;
   line-height: 1.45;
