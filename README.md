@@ -58,8 +58,10 @@ Currently:
 
 | Location | Rooms |
 | --- | --- |
+| Bangna Office | Meeting room 1 / Meeting room 2 / Meeting room 3 |
 | Factory 1 | Conference room 1 / Conference room 2 / Meeting space 1 / Meeting space 2 / Meeting space 3 |
 | Factory 2 | Conference room 1 / Meeting room 1 / Meeting room 2 / Meeting room 3 |
+| Factory 3 | Conference room 1 |
 
 To change them, edit the catalog and deploy. On startup the database is
 reconciled against the list: new entries are added, capacity/description changes
