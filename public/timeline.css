@@ -92,6 +92,21 @@
   font-size: 13px;
   color: #68727e;
 }
+/* The date under "Schedule" changes length with the weekday and month, and it
+   was dragging the < Today > buttons next to it sideways by up to 70px as you
+   moved through the week. Reserve the width of the longest date the formatter
+   can produce so they stay put. The invisible sizer does that in the actual
+   font, rather than a hardcoded pixel value that would be wrong wherever the
+   font resolves differently; "Wednesday 30 September 2026" is the widest of
+   every date en-GB can emit. */
+.tl-dateblock::after {
+  content: 'Wednesday 30 September 2026';
+  display: block;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  font-size: 13px;
+}
 /* Side by side, the reservation panel and the schedule are the same height: both
    columns stretch to the taller one and the timeline takes up whatever is left,
    so the two cards start and end on the same line. Below xl they stack and the
