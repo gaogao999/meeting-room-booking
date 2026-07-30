@@ -6,7 +6,7 @@
 :root {
   --tl-room-w: 172px;
   --tl-hour-w: 60px;
-  --tl-row-h: 46px;
+  --tl-row-h: 42px;
   --line: #dbe1e8;
   --line-soft: #edf0f4;
   --ink: #16202b;
@@ -33,9 +33,10 @@
 .app-nav .nav-link:hover {
   color: #fff;
 }
+/* Marked by colour and the underline only: bolding the active item would make it
+   wider and shift the links after it, so the nav would sit differently on each page. */
 .app-nav .nav-link.active {
   color: #fff;
-  font-weight: 600;
   box-shadow: inset 0 -3px 0 #ffc107;
 }
 .user-chip {
@@ -77,7 +78,7 @@
   overflow: clip; /* clip, NOT hidden: hidden would break position:sticky */
 }
 .panel-head {
-  padding: 14px 18px;
+  padding: 10px 18px;
   border-bottom: 1px solid #e6eaef;
   background: #f7f9fb;
 }
@@ -91,9 +92,37 @@
   font-size: 13px;
   color: #68727e;
 }
+/* Side by side, the reservation panel and the schedule are the same height: both
+   columns stretch to the taller one and the timeline takes up whatever is left,
+   so the two cards start and end on the same line. Below xl they stack and the
+   form sticks instead. */
 .sticky-form {
   position: sticky;
   top: 12px;
+}
+@media (min-width: 1200px) {
+  .booking-row > [class^='col-xl'] {
+    display: flex;
+    flex-direction: column;
+  }
+  .booking-row > [class^='col-xl'] > .panel {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .sticky-form {
+    position: static;
+  }
+  /* Capped so the card fits the window: the timeline scrolls inside itself and
+     the page doesn't, which keeps the booking form and the room column on screen
+     while you look through the day. The subtrahend is the chrome around it —
+     nav, panel head, filter chips, footer and margins. */
+  #timeline {
+    flex: 1 1 auto;
+    min-height: 260px;
+    max-height: calc(100vh - 300px);
+  }
 }
 
 /* Step headers in the booking form */
@@ -101,7 +130,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 .step .num {
   width: 24px;
@@ -134,7 +163,7 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--ink-2);
-  margin-bottom: 6px;
+  margin-bottom: 3px;
 }
 /* 16px inputs: prevents iOS zoom-on-focus and stays legible on the factory floor */
 .form-control,
@@ -144,7 +173,7 @@
 }
 .btn-book {
   width: 100%;
-  height: 52px;
+  height: 46px;
   border-radius: 10px;
   border: none;
   font-size: 17px;
@@ -160,7 +189,7 @@
   display: flex;
   gap: 8px;
   align-items: flex-start;
-  margin-top: 12px;
+  margin-top: 8px;
   font-size: 12.5px;
   color: #68727e;
   line-height: 1.45;
@@ -218,6 +247,8 @@
 /* ---- timeline ---- */
 .timeline {
   overflow: auto;
+  /* shift-clicking a range shouldn't highlight the labels as text */
+  user-select: none;
   max-height: min(72vh, 640px);
   -webkit-overflow-scrolling: touch;
 }
@@ -259,11 +290,6 @@
   font-size: 13.5px;
   font-weight: 600;
   color: var(--ink);
-  line-height: 1.2;
-}
-.tl-roomfree {
-  font-size: 11.5px;
-  color: var(--ink-3);
   line-height: 1.2;
 }
 .tl-track {
@@ -381,33 +407,11 @@
   color: var(--brand);
   font-weight: 700;
 }
-.tl-legend {
+.panel-foot {
   padding: 9px 18px;
   border-top: 1px solid #e6eaef;
   background: #fbfcfd;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 18px;
-  align-items: center;
-}
-.tl-legend .lbl {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--ink-4);
-}
-.tl-legend .item {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 13px;
-  color: var(--ink-2);
-}
-.tl-legend .sw {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
+  flex: 0 0 auto;
 }
 .tl-empty-msg {
   padding: 2rem;

@@ -11,12 +11,12 @@
   <nav class="navbar navbar-dark app-nav">
     <div class="container-fluid px-3 px-md-4 d-flex align-items-stretch" style="min-height:60px">
       <a class="navbar-brand d-flex align-items-center me-4" href="/">Meeting Room Booking</a>
-      <div class="d-flex align-items-stretch gap-1">
+      <div class="d-flex align-items-stretch gap-1 me-auto">
         <a class="nav-link active" href="/">Booking</a>
         <a class="nav-link" href="/rooms.html">Rooms</a>
         <a class="nav-link" href="/stats.html">Analytics</a>
       </div>
-      <div class="ms-auto d-flex align-items-center gap-3">
+      <div class="d-flex align-items-center gap-3">
         <span class="small" style="color:rgba(255,255,255,.55)" id="appVersion"></span>
         <div class="user-chip" id="currentUser" hidden>
           <div class="avatar" id="userInitials"></div>
@@ -29,8 +29,8 @@
     </div>
   </nav>
 
-  <div class="container-fluid px-3 px-md-4 my-4">
-    <div class="row g-4">
+  <div class="container-fluid px-3 px-md-4 my-3">
+    <div class="row g-4 booking-row">
       <!-- New reservation: pick time first, then choose from available rooms -->
       <div class="col-xl-4">
         <div class="panel sticky-form">
@@ -38,13 +38,13 @@
             <div class="panel-title">New reservation</div>
             <div class="panel-sub">Pick a time, then a free room.</div>
           </div>
-          <div class="card-body p-3 p-md-4">
+          <div class="card-body p-3">
             <div id="formAlert"></div>
             <form id="bookingForm">
               <!-- Step 1: choose date/time -->
               <div class="step"><span class="num">1</span><span class="ttl">When</span></div>
               <label class="form-label d-block" for="date">Date <span class="text-danger">*</span></label>
-              <div class="d-flex gap-2 mb-3">
+              <div class="d-flex gap-2 mb-2">
                 <input type="date" class="form-control" id="date" required />
                 <button type="button" class="btn btn-outline-secondary fw-semibold text-nowrap" id="dateToday">Today</button>
               </div>
@@ -66,7 +66,7 @@
                   </div>
                 </div>
               </div>
-              <div class="panel-sub mb-4" id="slotSummary"></div>
+              <div class="panel-sub mb-3" id="slotSummary"></div>
 
               <!-- Step 2: choose from the rooms available for that time -->
               <div class="step">
@@ -77,22 +77,22 @@
               <select class="form-select mb-1" id="roomId" required disabled>
                 <option value="">Select a date and time</option>
               </select>
-              <div class="form-text mb-4" id="availHint"></div>
+              <div class="form-text mb-3" id="availHint"></div>
 
               <!-- Step 3: details -->
               <div class="step"><span class="num">3</span><span class="ttl">Details</span></div>
               <div class="row">
-                <div class="col-6 mb-3">
+                <div class="col-6 mb-2">
                   <label class="form-label d-block" for="department">Department <span class="text-danger">*</span></label>
                   <input type="text" class="form-control" id="department" required />
                 </div>
-                <div class="col-6 mb-3">
+                <div class="col-6 mb-2">
                   <label class="form-label d-block" for="reserver">Name <span class="text-danger">*</span></label>
                   <input type="text" class="form-control" id="reserver" required />
                 </div>
               </div>
               <label class="form-label d-block" for="purpose">Purpose <span class="fw-normal text-secondary">(optional)</span></label>
-              <input type="text" class="form-control mb-4" id="purpose" placeholder="e.g. Line 3 review" />
+              <input type="text" class="form-control mb-3" id="purpose" placeholder="e.g. Line 3 review" />
               <button type="submit" class="btn-book" id="bookBtn" disabled>Select a room first</button>
             </form>
             <div class="rule-hint" id="ruleHintWrap">
@@ -128,13 +128,8 @@
           </div>
 
           <div id="timeline" class="timeline"></div>
-
-          <div class="tl-legend">
-            <span class="lbl">Department</span>
-            <div class="d-flex align-items-center flex-wrap gap-3" id="deptLegend"></div>
-          </div>
+          <p class="panel-foot panel-sub mb-0" id="tlRangeNote"></p>
         </div>
-        <p class="panel-sub mt-2 mb-0" id="tlRangeNote"></p>
       </div>
     </div>
   </div>

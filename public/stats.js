@@ -38,10 +38,6 @@ function escapeHtml(s) {
   );
 }
 
-function pad(n) {
-  return String(n).padStart(2, '0');
-}
-
 function colorForDept(department) {
   const key = String(department || '').toLowerCase().trim();
   if (DEPT_COLORS[key]) return DEPT_COLORS[key];
@@ -79,7 +75,7 @@ function renderTiles(d) {
     tile(s.roomCount, 'Active rooms');
   document.getElementById('rangeNote').textContent =
     d.from + ' to ' + d.to + ' · ' + d.days + ' days · ' + s.roomCount + ' rooms · ' +
-    pad(d.businessStartHour) + ':00–' + pad(d.businessEndHour) + ':00';
+    d.businessStartHour + ':00–' + d.businessEndHour + ':00';
 }
 
 // Room utilization, grouped by location and collapsible: the location row shows
@@ -155,7 +151,7 @@ function renderHeatmap(d) {
     'Low' + HEAT_SCALE.map((c) => '<span class="sw" style="background:' + c + '"></span>').join('') + 'High';
 
   let html = '<thead><tr><th></th>';
-  for (let h = bs; h < be; h++) html += '<th>' + pad(h) + '</th>';
+  for (let h = bs; h < be; h++) html += '<th>' + h + '</th>';
   html += '</tr></thead><tbody>';
   for (const dow of DOW_ORDER) {
     html += '<tr><td class="rowlbl">' + DOW[dow] + '</td>';
@@ -166,7 +162,7 @@ function renderHeatmap(d) {
       const color = alpha > 0.55 ? '#fff' : '#3a444f';
       html +=
         '<td style="background:' + bg + ';color:' + color + '" title="' + DOW[dow] + ' ' +
-        pad(bs + i) + ':00 — ' + v + ' min">' + (v ? Math.round(v) : '') + '</td>';
+        (bs + i) + ':00 — ' + v + ' min">' + (v ? Math.round(v) : '') + '</td>';
     }
     html += '</tr>';
   }

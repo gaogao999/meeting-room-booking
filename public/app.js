@@ -62,8 +62,21 @@ function pad(n) {
   return String(n).padStart(2, '0');
 }
 
+// Times are shown without a leading zero on the hour (8:00, not 08:00). Minutes
+// stay two digits. Note this is display only — timeStr() still pads, because
+// that is what goes to the API.
 function fmtMin(m) {
-  return `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
+  return `${Math.floor(m / 60)}:${pad(m % 60)}`;
+}
+
+// Same, for an "HH:MM" string that came back from the API.
+function fmtClock(hhmm) {
+  return hhmm.replace(/^0/, '');
+}
+
+// "2026-07-30T08:00" -> "2026-07-30 8:00"
+function fmtStamp(iso) {
+  return `${iso.slice(0, 10)} ${fmtClock(iso.slice(11, 16))}`;
 }
 
 function durText(m) {
@@ -153,8 +166,8 @@ function fillTimeControls() {
   for (let h = bs; h < be; h++) startHours.push(h); // start cannot be at closing hour
   const endHours = [];
   for (let h = bs; h <= be; h++) endHours.push(h);
-  startHour.innerHTML = startHours.map((h) => `<option value="${h}">${pad(h)}</option>`).join('');
-  endHour.innerHTML = endHours.map((h) => `<option value="${h}">${pad(h)}</option>`).join('');
+  startHour.innerHTML = startHours.map((h) => `<option value="${h}">${h}</option>`).join('');
+  endHour.innerHTML = endHours.map((h) => `<option value="${h}">${h}</option>`).join('');
 
   const minOpts = minuteOptions()
     .map((m) => `<option value="${m}">${pad(m)}</option>`)
@@ -198,7 +211,7 @@ function updateBookButton() {
   const room = state.rooms.find((r) => String(r.id) === sel.value);
   btn.disabled = !sel.value;
   btn.textContent = room
-    ? `Book ${room.name} · ${timeStr('startHour', 'startMin')}–${timeStr('endHour', 'endMin')}`
+    ? `Book ${room.name} · ${fmtMin(timeMin('startHour', 'startMin'))}–${fmtMin(timeMin('endHour', 'endMin'))}`
     : 'Select a room first';
 }
 
@@ -242,7 +255,7 @@ async function findRooms(preselectRoomId = null) {
         : data.available.filter((r) => (r.location || 'Other') === state.locFilter);
 
     if (available.length === 0) {
-      hint.textContent = `No rooms available for ${startStr}–${endStr}.`;
+      hint.textContent = `No rooms available for ${fmtClock(startStr)}–${fmtClock(endStr)}.`;
       reset('No rooms available');
       return;
     }
@@ -331,10 +344,8 @@ function renderFreeCells(room, busy) {
   // Free time is cut into clickable cells aligned to the hour grid, so one click
   // books exactly the hour it sits under.
   const cells = [];
-  let freeMin = 0;
   const emit = (from, to) => {
     if (to - from < 10) return;
-    freeMin += to - from;
     let a = from;
     while (a < to) {
       const b = Math.min(to, (Math.floor(a / 60) + 1) * 60);
@@ -348,7 +359,11 @@ function renderFreeCells(room, busy) {
           `<button type="button" class="tl-free${selected ? ' is-selected' : ''}"` +
             ` style="left:${((a - DAY_START) / SPAN) * 100}%;width:calc(${((b - a) / SPAN) * 100}% - 3px)"` +
             ` data-room="${room.id}" data-start="${a}" data-end="${b}"` +
-            ` title="Free ${fmtMin(a)}–${fmtMin(b)} · click to book ${escapeHtml(room.name)}">${label}</button>`
+            ` title="Free ${fmtMin(a)}–${fmtMin(b)} · ${
+              state.selectedRoom === room.id && a >= timeMin('endHour', 'endMin')
+                ? 'shift-click to select up to ' + fmtMin(b)
+                : 'click to book ' + escapeHtml(room.name)
+            }">${label}</button>`
         );
       }
       a = b;
@@ -363,7 +378,7 @@ function renderFreeCells(room, busy) {
     cursor = Math.max(cursor, Math.min(DAY_END, b.end));
   }
   if (cursor < DAY_END) emit(cursor, DAY_END);
-  return { html: cells.join(''), freeMin };
+  return cells.join('');
 }
 
 function renderTimeline(bookingsByRoom) {
@@ -381,7 +396,7 @@ function renderTimeline(bookingsByRoom) {
     const tx = m === DAY_END ? 'translateX(-100%)' : m === DAY_START ? 'translateX(0)' : 'translateX(-50%)';
     const line = m < DAY_END ? `<div class="tl-hour" style="left:${leftPct}%"></div>` : '';
     headHours.push(
-      line + `<div class="tl-hourlabel" style="left:${leftPct}%;transform:${tx}">${pad(m / 60)}:00</div>`
+      line + `<div class="tl-hourlabel" style="left:${leftPct}%;transform:${tx}">${m / 60}:00</div>`
     );
   }
 
@@ -415,8 +430,8 @@ function renderTimeline(bookingsByRoom) {
           const leftPct = ((s - DAY_START) / SPAN) * 100;
           const widthPct = ((e - s) / SPAN) * 100;
           const px = innerPx(e - s);
-          const range = `${x.b.start_at.slice(11, 16)}–${x.b.end_at.slice(11, 16)}`;
-          const time = px >= 66 ? range : px >= 32 ? x.b.start_at.slice(11, 16) : '';
+          const range = `${fmtClock(x.b.start_at.slice(11, 16))}–${fmtClock(x.b.end_at.slice(11, 16))}`;
+          const time = px >= 66 ? range : px >= 32 ? fmtClock(x.b.start_at.slice(11, 16)) : '';
           const sub = px >= 32 ? x.b.purpose || x.b.department : '';
           const title = `${range} ${x.b.purpose || ''} / ${x.b.department} ${x.b.reserver}`;
           return (
@@ -430,12 +445,13 @@ function renderTimeline(bookingsByRoom) {
         })
         .join('');
 
-      const free = renderFreeCells(room, list);
       html +=
         `<div class="tl-row"><div class="tl-roomcell">` +
-        `<span class="tl-roomname">${escapeHtml(room.name)}</span>` +
-        `<span class="tl-roomfree">${durText(free.freeMin)} free</span></div>` +
-        `<div class="tl-track" data-room="${room.id}">${hourLines()}${free.html}${bars}</div></div>`;
+        `<span class="tl-roomname">${escapeHtml(room.name)}</span></div>` +
+        `<div class="tl-track" data-room="${room.id}">${hourLines()}${renderFreeCells(
+          room,
+          list
+        )}${bars}</div></div>`;
     }
   }
   html += '</div>';
@@ -456,18 +472,6 @@ function renderLocationFilters() {
     .join('');
 }
 
-function renderDeptLegend(bookings) {
-  const depts = [...new Set(bookings.map((b) => b.department).filter(Boolean))].sort();
-  document.getElementById('deptLegend').innerHTML = depts
-    .map(
-      (d) =>
-        `<span class="item"><span class="sw" style="background:${colorForDept(d)}"></span>${escapeHtml(
-          d
-        )}</span>`
-    )
-    .join('');
-}
-
 async function loadTimeline() {
   state.date = document.getElementById('tlDate').value || todayStr();
   document.getElementById('tlDateLabel').textContent = dayLabel(state.date);
@@ -481,7 +485,6 @@ async function loadTimeline() {
     const byRoom = {};
     for (const b of list) (byRoom[b.room_id] = byRoom[b.room_id] || []).push(b);
     renderTimeline(byRoom);
-    renderDeptLegend(list);
   } catch (err) {
     document.getElementById('timeline').innerHTML =
       `<div class="tl-empty-msg text-danger">${escapeHtml(err.message)}</div>`;
@@ -496,12 +499,35 @@ function shiftDay(delta) {
   loadTimeline();
 }
 
-// Click a free cell -> that room + date + exactly that hour, then re-check availability
-function startFromCell(roomId, startMin, endMin) {
+// How far the room stays free without a break, starting at `from`. Used to keep a
+// shift-click from spanning an hour someone else has already booked.
+function freeUntil(roomId, from) {
+  const cells = [...document.querySelectorAll(`.tl-free[data-room="${roomId}"]`)]
+    .map((c) => [+c.getAttribute('data-start'), +c.getAttribute('data-end')])
+    .sort((a, b) => a[0] - b[0]);
+  let reach = from;
+  for (const [a, b] of cells) {
+    if (b <= reach) continue;
+    if (a > reach) break; // a booked hour in between
+    reach = b;
+  }
+  return reach;
+}
+
+// A plain click always starts a fresh one-hour selection on that slot.
+// Shift-clicking a later slot in the same room stretches the selection out to it.
+function startFromCell(roomId, startMin, endMin, shiftKey = false) {
   const slot = state.config.slotMinutes;
-  let s = Math.max(DAY_START, Math.floor(startMin / slot) * slot);
+  const curStart = timeMin('startHour', 'startMin');
+  const spanning = shiftKey && state.selectedRoom === +roomId && endMin > curStart;
+
+  let s = spanning
+    ? curStart
+    : Math.max(DAY_START, Math.floor(startMin / slot) * slot);
   s = Math.min(s, DAY_END - slot);
-  const e = Math.min(Math.max(endMin, s + slot), DAY_END);
+  let e = Math.min(Math.max(endMin, s + slot), DAY_END);
+  // Stop at the first booked hour rather than selecting across it.
+  if (spanning) e = Math.min(e, Math.max(freeUntil(roomId, s), s + slot));
   state.selectedRoom = +roomId;
   document.getElementById('date').value = state.date;
   document.getElementById('startHour').value = Math.floor(s / 60);
@@ -518,8 +544,8 @@ function openDetail(b) {
   document.getElementById('detailBody').innerHTML = `
     <dl class="row mb-0">
       <dt class="col-4">Room</dt><dd class="col-8">${escapeHtml(b.room_name)}</dd>
-      <dt class="col-4">Start</dt><dd class="col-8">${escapeHtml(b.start_at.replace('T', ' '))}</dd>
-      <dt class="col-4">End</dt><dd class="col-8">${escapeHtml(b.end_at.replace('T', ' '))}</dd>
+      <dt class="col-4">Start</dt><dd class="col-8">${escapeHtml(fmtStamp(b.start_at))}</dd>
+      <dt class="col-4">End</dt><dd class="col-8">${escapeHtml(fmtStamp(b.end_at))}</dd>
       <dt class="col-4">Department</dt><dd class="col-8">${escapeHtml(b.department)}</dd>
       <dt class="col-4">Name</dt><dd class="col-8">${escapeHtml(b.reserver)}</dd>
       <dt class="col-4">Purpose</dt><dd class="col-8">${escapeHtml(b.purpose || '-')}</dd>
@@ -587,7 +613,12 @@ async function init() {
     }
     const cell = e.target.closest('.tl-free');
     if (cell) {
-      startFromCell(cell.getAttribute('data-room'), +cell.getAttribute('data-start'), +cell.getAttribute('data-end'));
+      startFromCell(
+        cell.getAttribute('data-room'),
+        +cell.getAttribute('data-start'),
+        +cell.getAttribute('data-end'),
+        e.shiftKey
+      );
     }
   });
 
@@ -601,8 +632,9 @@ async function init() {
 
     document.getElementById('appVersion').textContent = cfg.version ? `v${cfg.version}` : '';
     document.getElementById('tlRangeNote').textContent =
-      `Shown range ${pad(cfg.businessStartHour)}:00–${pad(cfg.businessEndHour)}:00. ` +
-      'Click a booking for details, or a dashed slot to book that room and hour.';
+      `Shown range ${cfg.businessStartHour}:00–${cfg.businessEndHour}:00. ` +
+      'Click a booking for details. Click a dashed slot to book that hour, then ' +
+      'shift-click a later one to select everything up to it.';
     if (user.name) {
       document.getElementById('currentUser').hidden = false;
       document.getElementById('userName').textContent = user.name;

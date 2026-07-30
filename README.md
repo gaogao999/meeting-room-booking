@@ -14,7 +14,7 @@ when releasing — it's how you confirm which build is actually deployed.
   rooms actually available for that slot, department and name are pre-filled from
   the logged-in user. Bookings are in 10-minute increments and record department
   and name.
-- Schedule — rooms as rows, time axis 07:00–21:00, bookings drawn as a Gantt-style
+- Schedule — rooms as rows, time axis 8:00–20:00, bookings drawn as a Gantt-style
   chart. Click a bar for details, click empty space to start a booking there.
 - Booking window differs by department: HR departments can book up to 6 months out
   (180 days), everyone else up to 3 months (90 days).
@@ -22,7 +22,7 @@ when releasing — it's how you confirm which build is actually deployed.
   people can't grab the same slot at once.
 - Analytics page — room utilization, usage by department, a day×hour heatmap,
   average duration, cancellation rate.
-- Bookings and the schedule are limited to business hours (07:00–21:00 by
+- Bookings and the schedule are limited to business hours (8:00–20:00 by
   default), enforced server-side too, not just in the form.
 
 ## Tech stack
@@ -89,7 +89,7 @@ can exist in both factories.
 | `MOCK_USER_NAME` | Name used by mock auth | Taro Yamada |
 | `MOCK_USER_DEPARTMENT` | Department used by mock auth | General Affairs |
 | `SLOT_MINUTES` | Booking increment | 10 |
-| `BUSINESS_START_HOUR` / `BUSINESS_END_HOUR` | Bookable hours | 7 / 21 |
+| `BUSINESS_START_HOUR` / `BUSINESS_END_HOUR` | Bookable hours | 8 / 20 |
 | `BOOKING_WINDOW_DEFAULT_DAYS` / `BOOKING_WINDOW_HR_DAYS` | Booking window, days ahead | 90 / 180 |
 | `HR_DEPARTMENTS` | Department names counted as HR, comma-separated, partial match | HR,Human Resources,Recruiting,People,Talent |
 
