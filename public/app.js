@@ -392,8 +392,12 @@ function renderTimeline(bookingsByRoom) {
   const headHours = [];
   for (let m = DAY_START; m <= DAY_END; m += 60) {
     const leftPct = ((m - DAY_START) / SPAN) * 100;
-    // Keep the first/last labels inside the track so they don't overflow.
-    const tx = m === DAY_END ? 'translateX(-100%)' : m === DAY_START ? 'translateX(0)' : 'translateX(-50%)';
+    // Every label is centred on its hour line except the first and last, which
+    // would overflow the track and be hidden under the room column. The first
+    // gets a small gap so it doesn't sit right against the column border; the
+    // last is flush right, since insetting it too runs into the 19:00 label.
+    const tx =
+      m === DAY_END ? 'translateX(-100%)' : m === DAY_START ? 'translateX(6px)' : 'translateX(-50%)';
     const line = m < DAY_END ? `<div class="tl-hour" style="left:${leftPct}%"></div>` : '';
     headHours.push(
       line + `<div class="tl-hourlabel" style="left:${leftPct}%;transform:${tx}">${m / 60}:00</div>`
