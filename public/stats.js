@@ -170,6 +170,72 @@ function renderHeatmap(d) {
   document.getElementById('heatmap').innerHTML = html;
 }
 
+// ---- CSV export ----------------------------------------------------------
+// Built in the browser from the figures already on screen, so there is no
+// second endpoint to keep in step with the page and no library to ship.
+
+function csvCell(v) {
+  const s = String(v == null ? '' : v);
+  return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+function csvRows(d) {
+  const s = d.summary;
+  const rows = [
+    ['Meeting room utilization'],
+    ['From', d.from],
+    ['To', d.to],
+    ['Days', d.days],
+    ['Business hours', d.businessStartHour + ':00-' + d.businessEndHour + ':00'],
+    [],
+    ['Summary'],
+    ['Bookings', s.confirmed],
+    ['Booked hours', s.totalBookedHours],
+    ['Utilization %', s.overallUtilization],
+    ['Avg duration (min)', s.avgDurationMin],
+    ['Cancelled %', s.cancelRate],
+    ['Active rooms', s.roomCount],
+    [],
+    ['Room utilization'],
+    ['Location', 'Room', 'Bookings', 'Booked hours', 'Utilization %'],
+  ];
+
+  for (const loc of sortedLocations(d.perRoom)) {
+    const inLoc = d.perRoom.filter((r) => (r.location || 'Other') === loc);
+    for (const r of inLoc.sort((a, b) => b.utilization - a.utilization)) {
+      rows.push([loc, r.name, r.count, r.hours, r.utilization]);
+    }
+  }
+
+  rows.push([], ['Usage by department'], ['Department', 'Bookings', 'Booked hours']);
+  for (const x of d.byDepartment) rows.push([x.department, x.count, x.hours]);
+
+  // Weekday x hour, same orientation as the heatmap on screen
+  const hours = [];
+  for (let h = d.businessStartHour; h < d.businessEndHour; h++) hours.push(h);
+  rows.push([], ['Busy times (booked minutes)'], ['Weekday', ...hours.map((h) => h + ':00')]);
+  for (const dow of DOW_ORDER) {
+    rows.push([DOW[dow], ...hours.map((_, i) => Math.round(d.heatmap[dow][i] || 0))]);
+  }
+
+  return rows;
+}
+
+function exportCsv() {
+  if (!lastData) return;
+  // CRLF and a BOM: without them Excel splits nothing onto rows and mangles any
+  // non-ASCII department name.
+  const body = csvRows(lastData).map((r) => r.map(csvCell).join(',')).join('\r\n');
+  const url = URL.createObjectURL(new Blob(['﻿' + body], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `meeting-room-usage_${lastData.from}_${lastData.to}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 async function load() {
   const from = document.getElementById('from').value;
   const to = document.getElementById('to').value;
@@ -185,13 +251,16 @@ async function load() {
     renderPerRoom(d);
     renderByDept(d);
     renderHeatmap(d);
+    document.getElementById('exportCsv').disabled = false;
   } catch (err) {
     document.getElementById('tiles').innerHTML =
       '<div class="text-danger">' + escapeHtml(err.message) + '</div>';
+    document.getElementById('exportCsv').disabled = true;
   }
 }
 
 document.getElementById('apply').addEventListener('click', load);
+document.getElementById('exportCsv').addEventListener('click', exportCsv);
 document.getElementById('perRoom').addEventListener('click', (e) => {
   const btn = e.target.closest('.util-loc[data-loc]');
   if (!btn || !lastData) return;

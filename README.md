@@ -21,7 +21,10 @@ when releasing — it's how you confirm which build is actually deployed.
 - No double-booking — overlap check and insert happen in one transaction, so two
   people can't grab the same slot at once.
 - Analytics page — room utilization, usage by department, a day×hour heatmap,
-  average duration, cancellation rate.
+  average duration, cancellation rate. `Export CSV` downloads the figures for
+  the selected range (summary, per room, per department, and the heatmap as a
+  weekday×hour grid). Written with a BOM and CRLF line endings so Excel opens it
+  correctly, including non-ASCII department names.
 - Bookings and the schedule are limited to business hours (8:00–20:00 by
   default), enforced server-side too, not just in the form.
 
@@ -99,6 +102,13 @@ can exist in both factories.
 from `.env` stand in for a logged-in user. In production, switch to
 `AUTH_MODE=checklogin` and wire the existing `/checklogin` mechanism through
 `src/middleware/auth.js`.
+
+One thing to know before wiring that up: cookies are not scoped by port, so two
+Express apps on the same host share a cookie namespace even on different ports.
+If this app ever adds `express-session`, it must set a distinct cookie name
+(`mrb.sid`, say) — leaving the default `connect.sid` would overwrite the session
+cookie of any other Express app on the same host and silently log its users out.
+As it stands the app sets no cookies at all, so there is nothing to collide.
 
 Cancellation currently has no permission check — anyone can cancel any booking.
 It's a soft delete (status becomes `cancelled`, the row stays for analytics) so
