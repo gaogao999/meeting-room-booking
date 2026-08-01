@@ -1,18 +1,9 @@
 'use strict';
 
-function escapeHtml(s) {
-  return String(s == null ? '' : s).replace(
-    /[&<>"']/g,
-    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
-  );
-}
-
 async function loadRooms() {
   const tbody = document.getElementById('roomList');
   try {
-    const res = await fetch('/api/rooms?all=1');
-    const rooms = await res.json();
-    if (!res.ok) throw new Error(rooms.error || `Error (${res.status})`);
+    const rooms = await api('/api/rooms?all=1');
 
     if (rooms.length === 0) {
       tbody.innerHTML =

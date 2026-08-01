@@ -15,6 +15,9 @@ try {
   // so actually open one (in memory) to check it loads.
   new (require('better-sqlite3'))(':memory:').close();
 } catch (err) {
+  // Not installed at all (npm install --package-lock-only, for one) — nothing
+  // to check, and failing here would fail the whole install.
+  if (err.code === 'MODULE_NOT_FOUND') return;
   if (err.code !== 'ERR_DLOPEN_FAILED') throw err;
 
   console.log(
