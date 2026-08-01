@@ -11,23 +11,8 @@ let SPAN = DAY_END - DAY_START;
 const PX_PER_HOUR = 60;
 const ROOM_COL_PX = 172;
 
-// Bookings are coloured by department so the same team reads the same colour
-// everywhere (schedule, legend, analytics).
-const DEPT_COLORS = {
-  engineering: '#2563eb',
-  sales: '#0f766e',
-  'quality assurance': '#b45309',
-  'production control': '#6d28d9',
-  hr: '#be185d',
-  'human resources': '#be185d',
-  'general affairs': '#475569',
-  maintenance: '#15803d',
-};
-// Fallback palette for departments not in the map above (all dark enough for white text)
-const PALETTE = ['#2563eb', '#0f766e', '#b45309', '#6d28d9', '#be185d', '#475569', '#15803d', '#0e7490'];
-
-// Locations are shown in this order; anything unknown is appended alphabetically.
-const LOCATION_ORDER = ['Bangna Office', 'Factory 1', 'Factory 2', 'Factory 3'];
+// Bookings are coloured by department, and locations are ordered, by the shared
+// helpers in common.js.
 
 const state = {
   config: {
@@ -38,7 +23,6 @@ const state = {
     windowHrDays: 180,
     hrDepartments: [],
   },
-  user: { name: '', department: '' },
   date: null,
   rooms: [],
   locFilter: 'All',
@@ -47,16 +31,6 @@ const state = {
 };
 
 let detailModal = null;
-
-async function api(path, options = {}) {
-  const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Error (${res.status})`);
-  return data;
-}
 
 function pad(n) {
   return String(n).padStart(2, '0');
@@ -85,13 +59,6 @@ function durText(m) {
   return m % 60 ? `${h} h ${m % 60} m` : `${h} h`;
 }
 
-function escapeHtml(s) {
-  return String(s == null ? '' : s).replace(
-    /[&<>"']/g,
-    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
-  );
-}
-
 function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -100,14 +67,6 @@ function todayStr() {
 function dayLabel(iso) {
   const d = new Date(`${iso}T00:00`);
   return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-}
-
-function colorForDept(department) {
-  const key = String(department || '').toLowerCase().trim();
-  if (DEPT_COLORS[key]) return DEPT_COLORS[key];
-  let h = 0;
-  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) % PALETTE.length;
-  return PALETTE[h];
 }
 
 // Read the split hour/minute selects
@@ -123,13 +82,6 @@ function showAlert(message, type = 'danger') {
     `<div class="alert alert-${type} alert-dismissible fade show" role="alert">${escapeHtml(
       message
     )}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`;
-}
-
-function sortedLocations(rooms) {
-  const seen = [...new Set(rooms.map((r) => r.location || 'Other'))];
-  const known = LOCATION_ORDER.filter((l) => seen.includes(l));
-  const rest = seen.filter((l) => !LOCATION_ORDER.includes(l)).sort();
-  return [...known, ...rest];
 }
 
 function visibleRooms() {
@@ -629,7 +581,6 @@ async function init() {
   try {
     const [cfg, user] = await Promise.all([api('/api/config'), api('/api/auth/me')]);
     state.config = cfg;
-    state.user = user;
     DAY_START = cfg.businessStartHour * 60;
     DAY_END = cfg.businessEndHour * 60;
     SPAN = DAY_END - DAY_START;

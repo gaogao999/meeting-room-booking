@@ -131,10 +131,10 @@ function validateBooking({ startAt, endAt, department }, now = new Date()) {
   };
 }
 
+// isHrDepartment / bookingWindowEnd are only used by validateBooking below, so
+// they stay private to this module.
 module.exports = {
   parseLocal,
   formatLocal,
-  isHrDepartment,
-  bookingWindowEnd,
   validateBooking,
 };

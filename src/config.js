@@ -18,11 +18,6 @@ function defaultDbPath() {
   return path.join(dataDir, 'booking.db');
 }
 
-function toBool(value, fallback = false) {
-  if (value === undefined || value === null || value === '') return fallback;
-  return ['1', 'true', 'yes', 'on'].includes(String(value).toLowerCase());
-}
-
 function toInt(value, fallback) {
   const n = parseInt(value, 10);
   return Number.isFinite(n) ? n : fallback;
@@ -39,7 +34,6 @@ function toList(value) {
 const config = {
   version: pkg.version,
   port: toInt(process.env.PORT, 3000),
-  nodeEnv: process.env.NODE_ENV || 'development',
 
   dbPath: process.env.DB_PATH || defaultDbPath(),
 
@@ -50,7 +44,6 @@ const config = {
 
   auth: {
     mode: process.env.AUTH_MODE || 'mock',
-    checkloginUrl: process.env.CHECKLOGIN_URL || '',
     mockUser: {
       name: process.env.MOCK_USER_NAME || 'Dev User',
       department: process.env.MOCK_USER_DEPARTMENT || 'General Affairs',

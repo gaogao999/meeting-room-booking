@@ -31,7 +31,7 @@ when releasing — it's how you confirm which build is actually deployed.
 ## Tech stack
 
 - Node.js 22 LTS (pinned in `.node-version`, supported until April 2027) / Express
-- HTML + Bootstrap 5, vendored under `public/vendor/` — no CDN dependency
+- HTML + Bootstrap 5.3.3, vendored under `public/vendor/` — no CDN dependency, no build step
 - SQLite via better-sqlite3
 - Auth reuses the existing `/checklogin`; mock auth for local dev
 - Config/secrets in `.env`
@@ -83,12 +83,10 @@ can exist in both factories.
 | Variable | Description | Default |
 | --- | --- | --- |
 | `PORT` | Listen port | 3000 |
-| `NODE_ENV` | Environment | development |
 | `DB_PATH` | SQLite file path — normally leave unset, see Operations below | auto |
 | `BACKUP_DIR` | Where `npm run backup` writes to | ./backups |
 | `BACKUP_KEEP` | How many backups to keep | 14 |
 | `AUTH_MODE` | `mock` or `checklogin` | mock |
-| `CHECKLOGIN_URL` | `/checklogin` endpoint in production | (empty) |
 | `MOCK_USER_NAME` | Name used by mock auth | Taro Yamada |
 | `MOCK_USER_DEPARTMENT` | Department used by mock auth | General Affairs |
 | `SLOT_MINUTES` | Booking increment | 10 |
@@ -99,9 +97,10 @@ can exist in both factories.
 ## Authentication
 
 `AUTH_MODE=mock` during development — `MOCK_USER_NAME` / `MOCK_USER_DEPARTMENT`
-from `.env` stand in for a logged-in user. In production, switch to
-`AUTH_MODE=checklogin` and wire the existing `/checklogin` mechanism through
-`src/middleware/auth.js`.
+from `.env` stand in for a logged-in user. `AUTH_MODE=checklogin` currently
+takes the user from `X-User-Name` / `X-User-Department` request headers, on the
+assumption a reverse proxy sets them; calling the existing `/checklogin`
+directly is still to be written, in `src/middleware/auth.js`.
 
 One thing to know before wiring that up: cookies are not scoped by port, so two
 Express apps on the same host share a cookie namespace even on different ports.
@@ -200,6 +199,7 @@ src/
   services/
     bookingRules.js         slot/hours/window validation
 public/
+  common.js                 helpers shared by all three pages
   index.html / app.js       booking + schedule + availability
   rooms.html / rooms.js     room list (read-only)
   stats.html / stats.js     analytics
