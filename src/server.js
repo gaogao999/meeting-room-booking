@@ -3,6 +3,7 @@
 const path = require('path');
 const express = require('express');
 const config = require('./config');
+const { prisma } = require('./db');
 const { authenticate } = require('./middleware/auth');
 
 const app = express();
@@ -50,7 +51,19 @@ app.use(
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // ヘルスチェック
-app.get('/healthz', (req, res) => res.json({ ok: true }));
+//
+// Answers for the database, not just for the process. Without the query this
+// returned ok while every booking screen was failing, so anything watching it
+// would have reported the app healthy through an outage it could not serve a
+// single request during.
+app.get('/healthz', async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(503).json({ ok: false, error: 'Database unreachable.' });
+  }
+});
 
 // 認証（開発中はモック）。API 全体に適用する。
 app.use('/api', authenticate);
@@ -78,10 +91,29 @@ app.get('/api/config', (req, res) => {
 // 404
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not Found' }));
 
+// The database being unreachable is not a bug in the app and it is not the
+// user's fault, so it should not read as either. Prisma reports it with its own
+// codes; anything in this set means the server could not be talked to rather
+// than that the query was wrong.
+const DB_UNREACHABLE = new Set(['P1000', 'P1001', 'P1002', 'P1008', 'P1010', 'P1017']);
+
+function dbUnreachable(err) {
+  return (
+    err?.name === 'PrismaClientInitializationError' ||
+    DB_UNREACHABLE.has(err?.errorCode) ||
+    DB_UNREACHABLE.has(err?.code)
+  );
+}
+
 // エラーハンドラ
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   console.error(err);
+  if (dbUnreachable(err)) {
+    return res.status(503).json({
+      error: 'The booking system cannot reach its database. Please try again in a moment — if it keeps happening, tell IT.',
+    });
+  }
   const status = err.status || 500;
   // 4xx messages are ours and meant to be read. Anything else is an unexpected
   // failure whose message may describe the internals, so it stays in the log.
