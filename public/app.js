@@ -463,9 +463,11 @@ function renderTimeline(bookingsByRoom) {
           const range = `${fmtClock(x.b.start_at.slice(11, 16))}–${fmtClock(x.b.end_at.slice(11, 16))}`;
           const time = px >= 66 ? range : px >= 32 ? fmtClock(x.b.start_at.slice(11, 16)) : '';
           const sub = px >= 32 ? x.b.purpose || x.b.department : '';
-          const title = `${range} ${x.b.purpose || ''} / ${x.b.department} ${x.b.reserver}`;
+          const title = x.b.mine
+            ? `${range} ${x.b.purpose || ''} / your booking`
+            : `${range} ${x.b.purpose || ''} / ${x.b.department} ${x.b.reserver}`;
           return (
-            `<div class="tl-booking" style="left:${leftPct}%;width:${widthPct}%;background:${colorForDept(
+            `<div class="tl-booking${x.b.mine ? ' is-mine' : ''}" style="left:${leftPct}%;width:${widthPct}%;background:${colorForDept(
               x.b.department
             )}"` +
             ` data-booking='${escapeHtml(JSON.stringify(x.b))}' title="${escapeHtml(title)}">` +
@@ -571,7 +573,16 @@ function startFromCell(roomId, startMin, endMin, shiftKey = false) {
 // ---- Booking detail modal ----
 function openDetail(b) {
   state.detailBooking = b;
-  document.getElementById('detailBody').innerHTML = `
+  // Anyone can cancel anything, so make it unmistakable whose booking this is
+  // before the cancel button is within reach.
+  const banner = b.mine
+    ? '<div class="own-note mb-3">You booked this from this device.</div>'
+    : `<div class="other-note mb-3">Booked by <strong>${escapeHtml(b.reserver)}</strong>` +
+      ` (${escapeHtml(b.department)}), not from this device.</div>`;
+  document.getElementById('detailCancel').textContent = b.mine
+    ? 'Cancel my booking'
+    : `Cancel ${b.reserver}'s booking`;
+  document.getElementById('detailBody').innerHTML = banner + `
     <dl class="row mb-0">
       <dt class="col-4">Room</dt><dd class="col-8">${escapeHtml(b.room_name)}</dd>
       <dt class="col-4">Start</dt><dd class="col-8">${escapeHtml(fmtStamp(b.start_at))}</dd>
@@ -585,11 +596,17 @@ function openDetail(b) {
 
 async function cancelDetail() {
   if (!state.detailBooking) return;
-  // Anyone can cancel anything at the moment, so spell out whose booking this
-  // is before it goes — the realistic failure here is a misclick, not malice.
   const b = state.detailBooking;
   const when = `${fmtStamp(b.start_at)}\u2013${fmtClock(b.end_at.slice(11, 16))}`;
-  if (!confirm(`Cancel this booking?\n\n${b.room_name}  ${when}\n${b.department} / ${b.reserver}`)) return;
+  const what = `${b.room_name}  ${when}`;
+  // Cancelling your own booking is a normal action. Cancelling someone else's is
+  // almost always a misclick, so that one names them and asks twice.
+  if (b.mine) {
+    if (!confirm(`Cancel your booking?\n\n${what}`)) return;
+  } else {
+    if (!confirm(`This booking belongs to ${b.reserver} (${b.department}).\n\n${what}\n\nCancel it anyway?`)) return;
+    if (!confirm(`Really cancel ${b.reserver}'s booking?`)) return;
+  }
   try {
     await api(`/api/bookings/${state.detailBooking.id}`, { method: 'DELETE' });
     detailModal.hide();
