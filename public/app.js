@@ -467,15 +467,20 @@ function renderTimeline(bookingsByRoom) {
           const e = Math.min(DAY_END, x.end);
           const leftPct = ((s - DAY_START) / SPAN) * 100;
           const widthPct = ((e - s) / SPAN) * 100;
-          const px = innerPx(e - s);
+          // How much the bar can say depends on how wide it is. A half-hour
+          // booking is 30px and fits no time at all, but the grid already shows
+          // when it is — so it gets the department code instead, which is the
+          // part you cannot read off the position.
+          const barPx = ((e - s) / 60) * PX_PER_HOUR;
           const range = `${fmtClock(x.b.start_at.slice(11, 16))}–${fmtClock(x.b.end_at.slice(11, 16))}`;
-          const time = px >= 66 ? range : px >= 32 ? fmtClock(x.b.start_at.slice(11, 16)) : '';
-          const sub = px >= 32 ? x.b.purpose || x.b.department : '';
+          const narrow = barPx < 50 && barPx >= 24;
+          const time = barPx >= 84 ? range : barPx >= 50 ? fmtClock(x.b.start_at.slice(11, 16)) : '';
+          const sub = barPx >= 50 ? x.b.purpose || x.b.department : narrow ? x.b.department : '';
           const title = x.b.mine
             ? `${range} ${x.b.purpose || ''} / your booking`
             : `${range} ${x.b.purpose || ''} / ${x.b.department} ${x.b.reserver}`;
           return (
-            `<div class="tl-booking${x.b.mine ? ' is-mine' : ''}" style="left:${leftPct}%;width:${widthPct}%;background:${colorForDept(
+            `<div class="tl-booking${x.b.mine ? ' is-mine' : ''}${narrow ? ' is-narrow' : ''}" style="left:${leftPct}%;width:${widthPct}%;background:${colorForDept(
               x.b.department
             )}"` +
             ` data-booking='${escapeHtml(JSON.stringify(x.b))}' title="${escapeHtml(title)}">` +

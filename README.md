@@ -3,7 +3,7 @@
 Web app for booking company meeting rooms. Pick a date and time and only the rooms
 free for that slot show up; the whole company's schedule is visible on a timeline.
 
-Current version: v2.0.0. UI is in English.
+Current version: v2.0.1. UI is in English.
 
 The version shown in the app header comes from `package.json`, so bump it there
 when releasing — it's how you confirm which build is actually deployed.
@@ -16,7 +16,10 @@ when releasing — it's how you confirm which build is actually deployed.
   — PE, EC, CD, PD, WH, QA, SALES, PUR, ACCT, BOI, GA.HR, IT) rather than free
   text, so the analytics don't fragment across spellings of the same team.
 - Schedule — rooms as rows, time axis 8:00–20:00, bookings drawn as a Gantt-style
-  chart. Click a bar for details, click empty space to start a booking there.
+  chart. Click a bar for details, click empty space to start a booking there. A
+  bar shows as much as it has room for: the full range, or the start time, or —
+  for a half-hour booking, which is only 30px wide — the department code, since
+  the grid already says when it is but not who has it.
 - Booking window differs by department: HR (`GA.HR`) can book up to 6 months out
   (180 days), everyone else up to 3 months (90 days).
 - No double-booking — overlap check and insert happen in one transaction, so two
@@ -194,8 +197,11 @@ npm run db:deploy   # applies any pending migration
 npm start           # or however the server keeps it running
 ```
 
-`/healthz` answers `{"ok":true}` once it is up, for whatever watches the
-process.
+`/healthz` answers `{"ok":true}` once it is up, and `503` with
+`{"ok":false}` whenever the database cannot be reached — it runs a query rather
+than just confirming the process is alive, so a monitor watching it notices an
+outage the app could not serve a single booking through. If the database goes
+away and comes back, the app recovers on its own; it does not need restarting.
 
 There is no longer a public demo. It ran on Render against a file database,
 which this version no longer has; SQL Server is not something Render offers.
