@@ -90,10 +90,22 @@ app.use((err, req, res, next) => {
 });
 
 if (require.main === module) {
-  app.listen(config.port, () => {
-    console.log(`Meeting Room Booking started: http://localhost:${config.port}`);
-    console.log(`Auth mode: ${config.auth.mode}`);
-  });
+  // Connect and reconcile the room list before accepting traffic — a request
+  // arriving before the rooms are in place would show an empty schedule.
+  const { init } = require('./db');
+  init()
+    .then(() => {
+      app.listen(config.port, () => {
+        console.log(`Meeting Room Booking started: http://localhost:${config.port}`);
+        console.log(`Auth mode: ${config.auth.mode}`);
+      });
+    })
+    .catch((err) => {
+      console.error('\nCould not start: the database is not reachable.');
+      console.error(err.message);
+      console.error('\nCheck DATABASE_URL in .env, and that this machine can reach the server.\n');
+      process.exit(1);
+    });
 }
 
 module.exports = app;
