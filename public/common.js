@@ -24,10 +24,48 @@ const DEPT_COLORS = {
 // Fallback palette for departments not in the map above (all dark enough for white text)
 const PALETTE = ['#2563eb', '#0f766e', '#b45309', '#6d28d9', '#be185d', '#475569', '#15803d', '#0e7490'];
 
+// A number this browser makes up for itself the first time it books, so the app
+// can tell someone which bookings are theirs while there is no login. It goes to
+// the server with every request and is never shown to anyone.
+const DEVICE_KEY = 'mrb.device';
+
+function randomId() {
+  const b = new Uint8Array(16);
+  // crypto.randomUUID needs a secure context and the app is served over plain
+  // HTTP on an internal address, so it will not be there. getRandomValues is.
+  if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(b);
+  else for (let i = 0; i < b.length; i++) b[i] = Math.floor(Math.random() * 256);
+  return [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
+}
+
+let deviceIdCache = null;
+
+function deviceId() {
+  if (deviceIdCache) return deviceIdCache;
+  try {
+    deviceIdCache = localStorage.getItem(DEVICE_KEY);
+  } catch (err) {
+    /* storage blocked — fall through and use a per-page id */
+  }
+  if (!deviceIdCache) {
+    deviceIdCache = randomId();
+    try {
+      localStorage.setItem(DEVICE_KEY, deviceIdCache);
+    } catch (err) {
+      /* bookings from this browser just won't be recognised next visit */
+    }
+  }
+  return deviceIdCache;
+}
+
 async function api(path, options = {}) {
   const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json' },
     ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Device-Id': deviceId(),
+      ...(options.headers || {}),
+    },
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `Error (${res.status})`);

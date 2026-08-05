@@ -444,3 +444,25 @@
     position: static;
   }
 }
+
+/* Your own bookings, so you can pick yours out of a full day at a glance and
+   know which one you are about to cancel. A ring rather than a different
+   colour: the colour already means the department. */
+.tl-booking.is-mine {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--brand), 0 1px 3px rgba(16, 32, 48, 0.22);
+}
+.own-note,
+.other-note {
+  font-size: 13.5px;
+  border-radius: 8px;
+  padding: 9px 12px;
+  line-height: 1.5;
+}
+.own-note {
+  background: #e7f2ea;
+  color: #1b6b34;
+}
+.other-note {
+  background: #fdf3e2;
+  color: #8a5a06;
+}

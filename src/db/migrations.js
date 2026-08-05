@@ -22,6 +22,21 @@ const migrations = [
       db.exec(sql);
     },
   },
+  {
+    version: 2,
+    name: 'record which device made a booking',
+    up(db) {
+      // Without a login, the browser that made a booking is the only thing that
+      // ties it to a person. Used to tell someone their own booking apart from
+      // everyone else's before they cancel it. The IP is recorded alongside but
+      // never sent back to the browser — it is there for looking into a problem
+      // after the fact, not for the screen.
+      db.exec(`
+        ALTER TABLE bookings ADD COLUMN device_id TEXT;
+        ALTER TABLE bookings ADD COLUMN created_ip TEXT;
+      `);
+    },
+  },
 ];
 
 // Apply any migrations newer than the database's current version.

@@ -3,7 +3,7 @@
 Web app for booking company meeting rooms. Pick a date and time and only the rooms
 free for that slot show up; the whole company's schedule is visible on a timeline.
 
-Current version: v1.4.0. UI is in English.
+Current version: v1.5.0. UI is in English.
 
 The version shown in the app header comes from `package.json`, so bump it there
 when releasing — it's how you confirm which build is actually deployed.
@@ -90,6 +90,7 @@ can exist in both factories.
 | `BACKUP_DIR` | Where `npm run backup` writes to | ./backups |
 | `BACKUP_KEEP` | How many backups to keep | 14 |
 | `AUTH_MODE` | `mock` (no login) or `checklogin` | mock |
+| `TRUST_PROXY` | Set when a reverse proxy is in front, so the recorded IP is the client's | off |
 | `SLOT_MINUTES` | Booking increment | 10 |
 | `BUSINESS_START_HOUR` / `BUSINESS_END_HOUR` | Bookable hours | 8 / 20 |
 | `BOOKING_WINDOW_DEFAULT_DAYS` / `BOOKING_WINDOW_HR_DAYS` | Booking window, days ahead | 90 / 180 |
@@ -120,11 +121,32 @@ If this app ever adds `express-session`, it must set a distinct cookie name
 cookie of any other Express app on the same host and silently log its users out.
 As it stands the app sets no cookies at all, so there is nothing to collide.
 
-Cancellation currently has no permission check — anyone can cancel any booking.
-It's a soft delete (status becomes `cancelled`, the row stays for analytics) so
-the slot frees up and it drops off the schedule but the history is kept. A rule
-like "HR can cancel anything, others only their own" isn't in yet; it belongs
-together with the real `/checklogin` auth, once who's logged in is actually known.
+### Whose booking is whose, without a login
+
+The browser generates an id for itself on first use and sends it with every
+request. The server stores it against the booking and tells each browser which
+bookings are its own — it never sends anyone else's id back, so the id is not
+something one user can learn about another.
+
+The schedule rings your own bookings, the detail panel says whether the booking
+came from this device or names who made it, and the cancel button reads `Cancel
+my booking` or `Cancel Somchai's booking` accordingly. Cancelling your own asks
+once; cancelling someone else's names them and asks twice.
+
+This stops accidents, not impersonation — clearing browser storage is enough to
+become a new device, and cancellation is still unrestricted server-side. That is
+the trade for having no login: with roughly one PC per person the id behaves like
+an identity, and the failure it actually prevents is the misclick. Real
+enforcement waits for `/checklogin`.
+
+Cancellation is a soft delete (status becomes `cancelled`, the row stays for
+analytics) so the slot frees up and it drops off the schedule but the history is
+kept.
+
+The requester's IP is recorded on each booking as well. It is never returned to
+any browser and appears on no screen; it exists so a problem can be looked into
+after the fact. Behind a reverse proxy set `TRUST_PROXY` or every booking records
+the proxy's address.
 
 ## API
 

@@ -6,6 +6,20 @@ const { validateBooking } = require('../services/bookingRules');
 
 const router = express.Router();
 
+// Which browser is asking. Set by every request the frontend makes; absent for
+// anything else (curl, another tool), which just means nothing looks "mine".
+function deviceOf(req) {
+  const id = req.get('X-Device-Id');
+  return id && /^[a-f0-9]{8,64}$/i.test(id) ? id : null;
+}
+
+// device_id and created_ip stay on the server. The browser is told whether a
+// booking is its own, not what everyone else's identifiers are.
+function present(row, device) {
+  const { device_id, created_ip, ...rest } = row;
+  return { ...rest, mine: Boolean(device && device_id === device) };
+}
+
 // Find a confirmed booking that overlaps [startAt, endAt) for the room.
 // Half-open interval: adjacent bookings (end == next start) do NOT overlap.
 function findOverlap(roomId, startAt, endAt, excludeId = null) {
@@ -33,8 +47,8 @@ const insertIfFree = db.transaction((data) => {
   const info = db
     .prepare(
       `INSERT INTO bookings
-        (room_id, department, reserver, purpose, start_at, end_at, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+        (room_id, department, reserver, purpose, start_at, end_at, created_by, device_id, created_ip)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       data.roomId,
@@ -43,7 +57,9 @@ const insertIfFree = db.transaction((data) => {
       data.purpose,
       data.startAt,
       data.endAt,
-      data.createdBy
+      data.createdBy,
+      data.deviceId,
+      data.createdIp
     );
   return { id: info.lastInsertRowid };
 });
@@ -99,7 +115,8 @@ router.get('/', (req, res) => {
        ORDER BY b.start_at`
     )
     .all(...params);
-  res.json(rows);
+  const device = deviceOf(req);
+  res.json(rows.map((r) => present(r, device)));
 });
 
 // Get one booking
@@ -112,7 +129,7 @@ router.get('/:id', (req, res) => {
     )
     .get(req.params.id);
   if (!row) return res.status(404).json({ error: 'Booking not found.' });
-  res.json(row);
+  res.json(present(row, deviceOf(req)));
 });
 
 // Create a booking
@@ -157,6 +174,8 @@ router.post('/', (req, res) => {
     startAt,
     endAt,
     createdBy: req.user?.name || null,
+    deviceId: deviceOf(req),
+    createdIp: req.ip || null,
   });
   if (result.overlap) {
     return res.status(409).json({
@@ -172,7 +191,7 @@ router.post('/', (req, res) => {
        WHERE b.id = ?`
     )
     .get(result.id);
-  res.status(201).json(created);
+  res.status(201).json(present(created, deviceOf(req)));
 });
 
 // Update a booking
@@ -224,7 +243,7 @@ router.put('/:id', (req, res) => {
        WHERE b.id = ?`
     )
     .get(existing.id);
-  res.json(updated);
+  res.json(present(updated, deviceOf(req)));
 });
 
 // Cancel a booking (soft delete: keep the row for analytics, mark it cancelled).

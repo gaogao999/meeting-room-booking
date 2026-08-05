@@ -7,6 +7,12 @@ const { authenticate } = require('./middleware/auth');
 
 const app = express();
 
+// Behind a reverse proxy every request otherwise looks like it came from the
+// proxy, which would make the recorded IP useless. Off by default because
+// trusting the header when there is no proxy in front lets a client claim any
+// address it likes. Set TRUST_PROXY=1 (or a hop count) when one is in front.
+if (config.trustProxy) app.set('trust proxy', config.trustProxy);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
