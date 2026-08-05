@@ -3,7 +3,7 @@
 Web app for booking company meeting rooms. Pick a date and time and only the rooms
 free for that slot show up; the whole company's schedule is visible on a timeline.
 
-Current version: v1.3.0. UI is in English.
+Current version: v1.3.1. UI is in English.
 
 The version shown in the app header comes from `package.json`, so bump it there
 when releasing — it's how you confirm which build is actually deployed.
@@ -30,7 +30,8 @@ when releasing — it's how you confirm which build is actually deployed.
 
 ## Tech stack
 
-- Node.js 22 LTS (pinned in `.node-version`, supported until April 2027) / Express
+- Node.js 22 or newer / Express. Tested on 22 LTS and on 26; `.node-version` pins
+  22.22.2 for the Render deploy, which is the only place that file is read.
 - HTML + Bootstrap 5.3.3, vendored under `public/vendor/` — no CDN dependency, no build step
 - SQLite via better-sqlite3
 - Auth reuses the existing `/checklogin`; mock auth for local dev
@@ -167,6 +168,13 @@ a specific Node major version, and `npm install` will happily leave an existing
 `node_modules` in place — so after a Node upgrade the app starts and then dies
 with `NODE_MODULE_VERSION 115 ... requires 127`. `npm ci` wipes `node_modules`
 first, so the binary always matches the Node actually running it.
+
+That binary is also the one thing tied to the Node version, so it decides which
+Node the app runs on. better-sqlite3 13 publishes prebuilt binaries for Node 22
+through 26 — installs take seconds and need no compiler. Going back to an older
+better-sqlite3, or forward to a Node it has no prebuild for, means falling back
+to building from source, which needs a toolchain on the server and fails outright
+on a Node whose V8 API the older release predates.
 
 No manual database step. Schema changes ship as migrations tracked by SQLite's
 `user_version` — each one runs once, in a transaction, and only adds to what's
