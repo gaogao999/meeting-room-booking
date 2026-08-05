@@ -119,8 +119,12 @@ router.get('/:id', (req, res) => {
 router.post('/', (req, res) => {
   const body = req.body || {};
   const roomId = parseInt(body.room_id, 10);
-  const department = (body.department || req.user?.department || '').trim();
-  const reserver = (body.reserver || req.user?.name || '').trim();
+  // Only fall back to the logged-in user when there actually is one. In mock
+  // mode there is no login, so an empty field must fail rather than quietly
+  // file the booking under a placeholder name.
+  const authed = req.user?.mode !== 'mock';
+  const department = (body.department || (authed ? req.user?.department : '') || '').trim();
+  const reserver = (body.reserver || (authed ? req.user?.name : '') || '').trim();
   const purpose = body.purpose ? String(body.purpose).trim() : null;
 
   if (!Number.isFinite(roomId)) {

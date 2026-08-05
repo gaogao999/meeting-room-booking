@@ -1,6 +1,6 @@
 {
   "name": "meeting-room-booking",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "description": "会社の会議室を登録・予約するシステム",
   "main": "src/server.js",
   "type": "commonjs",

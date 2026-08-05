@@ -35,6 +35,7 @@ app.get('/api/config', (req, res) => {
     windowDefaultDays: config.booking.windowDefaultDays,
     windowHrDays: config.booking.windowHrDays,
     hrDepartments: config.booking.hrDepartments,
+    departments: config.booking.departments,
   });
 });
 
