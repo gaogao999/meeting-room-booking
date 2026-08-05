@@ -86,6 +86,7 @@ can exist in both factories.
 | Variable | Description | Default |
 | --- | --- | --- |
 | `PORT` | Listen port | 3000 |
+| `NODE_ENV` | Read by Express itself, not by this app's config | development |
 | `DB_PATH` | SQLite file path — normally leave unset, see Operations below | auto |
 | `BACKUP_DIR` | Where `npm run backup` writes to | ./backups |
 | `BACKUP_KEEP` | How many backups to keep | 14 |
@@ -152,7 +153,7 @@ the proxy's address.
 
 | Method | Path | Description |
 | --- | --- | --- |
-| GET | `/api/config` | Booking rules, business hours, version |
+| GET | `/api/config` | Booking rules, business hours, the department list, version |
 | GET | `/api/auth/me` | Logged-in user |
 | GET | `/api/rooms` | List rooms (`?all=1` includes disabled). Read-only — rooms come from the catalog |
 | GET | `/api/availability?start_at=&end_at=` | Which rooms are free for a slot. Taken rooms come back with a conflict count, not the bookings themselves |
@@ -250,6 +251,11 @@ there, so an update never means recreating the database. The log line on boot
 appending a new entry to `src/db/migrations.js`; existing entries shouldn't be
 edited or renumbered, since a database that already applied one would just skip it.
 
+`npm run init-db` prints the schema version the database is at and the version
+the code expects — a quick way to confirm an update actually applied. It creates
+the database if it isn't there yet, and is safe to run against one that already
+holds bookings.
+
 Backups (`npm run backup`) use SQLite's online backup API, so they're consistent
 even while the app is live — fine to put on a cron job. Old ones beyond
 `BACKUP_KEEP` get pruned automatically. To restore, stop the app, copy a backup
@@ -259,7 +265,7 @@ over `DB_PATH`, start it back up.
 
 ```
 src/
-  server.js               entry point
+  server.js               entry point, security headers, static files
   config.js                .env loading / config
   departments.js           the department list for the booking form
   db/
@@ -273,11 +279,15 @@ src/
   routes/
     auth.js, rooms.js (read-only), bookings.js, availability.js, stats.js
   services/
-    bookingRules.js         slot/hours/window validation
+    bookingRules.js         slot/hours/window/length validation
 public/
   common.js                 helpers shared by all three pages
   index.html / app.js       booking + schedule + availability
   rooms.html / rooms.js     room list (read-only)
   stats.html / stats.js     analytics
+  timeline.css               all the styling
+  favicon.svg
   vendor/                    Bootstrap 5
+scripts/
+  ensure-native-module.js   postinstall check that better-sqlite3 loads
 ```
