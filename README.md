@@ -3,7 +3,7 @@
 Web app for booking company meeting rooms. Pick a date and time and only the rooms
 free for that slot show up; the whole company's schedule is visible on a timeline.
 
-Current version: v1.5.1. UI is in English.
+Current version: v1.6.0. UI is in English.
 
 The version shown in the app header comes from `package.json`, so bump it there
 when releasing — it's how you confirm which build is actually deployed.
@@ -12,12 +12,12 @@ when releasing — it's how you confirm which build is actually deployed.
 
 - Booking flow (`Booking` page) — choose a date and start/end time, then pick from
   the rooms actually available for that slot. Bookings are in 10-minute increments
-  and record department and name. Department is a fixed list (`src/departments.js`)
-  rather than free text, so the analytics don't fragment across spellings of the
-  same team.
+  and record department and name. Department is a fixed list (`src/departments.js`
+  — PE, EC, CD, PD, WH, QA, SALES, PUR, ACCT, BOI, GA.HR, IT) rather than free
+  text, so the analytics don't fragment across spellings of the same team.
 - Schedule — rooms as rows, time axis 8:00–20:00, bookings drawn as a Gantt-style
   chart. Click a bar for details, click empty space to start a booking there.
-- Booking window differs by department: HR departments can book up to 6 months out
+- Booking window differs by department: HR (`GA.HR`) can book up to 6 months out
   (180 days), everyone else up to 3 months (90 days).
 - No double-booking — overlap check and insert happen in one transaction, so two
   people can't grab the same slot at once.
@@ -94,7 +94,7 @@ can exist in both factories.
 | `SLOT_MINUTES` | Booking increment | 10 |
 | `BUSINESS_START_HOUR` / `BUSINESS_END_HOUR` | Bookable hours | 8 / 20 |
 | `BOOKING_WINDOW_DEFAULT_DAYS` / `BOOKING_WINDOW_HR_DAYS` | Booking window, days ahead | 90 / 180 |
-| `HR_DEPARTMENTS` | Department names counted as HR, comma-separated, partial match | HR,Human Resources,Recruiting,People,Talent |
+| `HR_DEPARTMENTS` | Departments counted as HR, comma-separated, case-insensitive substring match against `src/departments.js` | GA.HR,HR |
 
 ## Authentication
 

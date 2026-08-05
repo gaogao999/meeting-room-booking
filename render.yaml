@@ -45,8 +45,9 @@ services:
         value: "90"
       - key: BOOKING_WINDOW_HR_DAYS
         value: "180"
+      # 部署コードは src/departments.js を参照。半年先まで予約できるのはこれに一致する部署
       - key: HR_DEPARTMENTS
-        value: 人事部,HR,人事,採用,人材開発
+        value: GA.HR,HR
     # ---- 永続ディスク（予約データを保持したい場合・有料プラン）----
     # plan を free 以外にした上で、以下のコメントを外し、
     # envVars に DB_PATH=/data/booking.db を追加する
