@@ -30,6 +30,9 @@ CREATE TABLE [dbo].[bookings] (
     [status] VARCHAR(20) NOT NULL CONSTRAINT [bookings_status_df] DEFAULT 'confirmed',
     [created_by] NVARCHAR(80),
     [created_at] DATETIME2 NOT NULL CONSTRAINT [bookings_created_at_df] DEFAULT CURRENT_TIMESTAMP,
+    [updated_at] DATETIME2 NOT NULL,
+    [cancelled_at] DATETIME2,
+    [cancelled_device] VARCHAR(64),
     [device_id] VARCHAR(64),
     [created_ip] VARCHAR(64),
     CONSTRAINT [bookings_pkey] PRIMARY KEY CLUSTERED ([id])
