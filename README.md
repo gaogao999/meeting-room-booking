@@ -3,7 +3,7 @@
 Web app for booking company meeting rooms. Pick a date and time and only the rooms
 free for that slot show up; the whole company's schedule is visible on a timeline.
 
-Current version: v1.6.0. UI is in English.
+Current version: v1.7.0. UI is in English.
 
 The version shown in the app header comes from `package.json`, so bump it there
 when releasing — it's how you confirm which build is actually deployed.
@@ -155,8 +155,8 @@ the proxy's address.
 | GET | `/api/config` | Booking rules, business hours, version |
 | GET | `/api/auth/me` | Logged-in user |
 | GET | `/api/rooms` | List rooms (`?all=1` includes disabled). Read-only — rooms come from the catalog |
-| GET | `/api/availability?start_at=&end_at=` | Free/busy rooms for a slot |
-| GET | `/api/bookings` | List bookings (`room_id` / `from` / `to` / `status`; confirmed only unless `status=all`) |
+| GET | `/api/availability?start_at=&end_at=` | Which rooms are free for a slot. Taken rooms come back with a conflict count, not the bookings themselves |
+| GET | `/api/bookings` | List bookings (`room_id` / `from` / `to` / `status`; confirmed only unless `status=all`). With no `from` and no `to` it returns the last 30 days through the end of the booking window rather than everything ever booked |
 | POST | `/api/bookings` | Create booking |
 | PUT | `/api/bookings/:id` | Update booking |
 | DELETE | `/api/bookings/:id` | Cancel booking |
@@ -175,6 +175,41 @@ Node version is pinned via `.node-version` so better-sqlite3 gets a prebuilt
 binary instead of compiling. The free plan sleeps when idle and its disk is
 ephemeral — bookings reset on redeploy/wake and default rooms get reseeded. For
 persistence, add a paid Render Disk and point `DB_PATH` at the mounted path.
+
+## Security
+
+No dependency does this — it is a middleware and a few validation rules.
+
+Every response carries a Content-Security-Policy of `self`, plus `nosniff`,
+`X-Frame-Options: DENY` and `Referrer-Policy: no-referrer`. The policy is
+possible because nothing loads from anywhere else: no CDN, no fonts, no
+analytics. Inline styles are allowed (the timeline positions its bars with style
+attributes); inline scripts are not, which is the half that keeps injected
+markup from running. `X-Powered-By` is off.
+
+Everything a user types is escaped on the way into the page, and every query is
+parameterised — the payloads worth trying (`'; DROP TABLE bookings;--` and
+friends) are stored and displayed as the text they are. Request bodies are
+capped at 32kb and department, name and purpose have length limits, so a booking
+cannot be used to park a large blob in the database. Unexpected 500s log their
+detail and return a generic message.
+
+What is deliberately open: there is no login, so anyone who can reach the port
+can book and can cancel. See Authentication above.
+
+## Performance
+
+At around 9,000 bookings — a year of real use — a day of the schedule comes back
+in about 3ms, the availability check in about 2ms, and a month of analytics in
+about 4ms.
+
+What that rests on: `idx_bookings_status_start` covers the "confirmed bookings
+in this range, in time order" question that the schedule and the analytics both
+ask, so neither scans the table. The analytics compare `start_at` as a range
+rather than wrapping it in `substr()`, which would have made the index unusable.
+Availability asks one grouped question instead of one query per room. Bootstrap
+is served with a long cache lifetime while the app's own files stay on
+revalidation, so a deploy takes effect on the next page load.
 
 ## Operations: updating without losing bookings
 

@@ -7,16 +7,46 @@ const { authenticate } = require('./middleware/auth');
 
 const app = express();
 
+// Nothing gains from advertising the framework and version to whoever asks.
+app.disable('x-powered-by');
+
 // Behind a reverse proxy every request otherwise looks like it came from the
 // proxy, which would make the recorded IP useless. Off by default because
 // trusting the header when there is no proxy in front lets a client claim any
 // address it likes. Set TRUST_PROXY=1 (or a hop count) when one is in front.
 if (config.trustProxy) app.set('trust proxy', config.trustProxy);
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// A booking is a few hundred bytes; the default 100kb ceiling is far more than
+// this app ever needs to accept.
+app.use(express.json({ limit: '32kb' }));
+
+// Everything the page needs is served from this origin — no CDN, no external
+// fonts, no analytics — so the policy can simply be "self". Inline styles are
+// allowed because the markup positions timeline bars with style attributes;
+// inline *scripts* are not, which is the half that stops injected markup from
+// executing. frame-ancestors keeps the app out of other sites' frames.
+app.use((req, res, next) => {
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+      "img-src 'self' data:; connect-src 'self'; form-action 'self'; " +
+      "base-uri 'self'; frame-ancestors 'none'"
+  );
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  next();
+});
 
 // 静的ファイル（フロントエンド）
+// Bootstrap only changes when the app is redeployed with a new copy of it, so
+// it is worth caching properly. The app's own files stay on revalidation, so a
+// deploy takes effect on the next page load rather than whenever a cache
+// happens to expire.
+app.use(
+  '/vendor',
+  express.static(path.join(__dirname, '..', 'public', 'vendor'), { maxAge: '7d', immutable: true })
+);
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // ヘルスチェック
@@ -53,7 +83,10 @@ app.use('/api', (req, res) => res.status(404).json({ error: 'Not Found' }));
 app.use((err, req, res, next) => {
   console.error(err);
   const status = err.status || 500;
-  res.status(status).json({ error: err.message || 'Internal server error.' });
+  // 4xx messages are ours and meant to be read. Anything else is an unexpected
+  // failure whose message may describe the internals, so it stays in the log.
+  const message = status < 500 ? err.message : 'Internal server error.';
+  res.status(status).json({ error: message || 'Internal server error.' });
 });
 
 if (require.main === module) {

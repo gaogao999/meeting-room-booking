@@ -37,6 +37,17 @@ const migrations = [
       `);
     },
   },
+  {
+    version: 3,
+    name: 'index bookings by status and start time',
+    up(db) {
+      // The schedule and the analytics both ask for "confirmed bookings in this
+      // date range, in time order", which was a full table scan and a sort —
+      // the existing index leads with room_id and cannot answer it. This one
+      // covers the filter, the range and the ordering.
+      db.exec('CREATE INDEX IF NOT EXISTS idx_bookings_status_start ON bookings (status, start_at)');
+    },
+  },
 ];
 
 // Apply any migrations newer than the database's current version.

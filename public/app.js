@@ -516,8 +516,11 @@ async function loadTimeline() {
   state.date = document.getElementById('tlDate').value || todayStr();
   document.getElementById('tlDateLabel').textContent = dayLabel(state.date);
   try {
+    // Rooms come from a catalog that only changes on deploy, so they are fetched
+    // once and kept — paging through a week was re-fetching the same 13 rows
+    // with every arrow click.
     const [rooms, list] = await Promise.all([
-      api('/api/rooms'),
+      state.rooms.length ? state.rooms : api('/api/rooms'),
       api(`/api/bookings?from=${state.date}T00:00&to=${state.date}T23:59`),
     ]);
     state.rooms = rooms;
