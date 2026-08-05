@@ -586,13 +586,17 @@ function openDetail(b) {
   state.detailBooking = b;
   // Anyone can cancel anything, so make it unmistakable whose booking this is
   // before the cancel button is within reach.
+  // Only the computer that made a booking can cancel it, so for anyone else
+  // the button is not there to press — showing a disabled one, or one that
+  // fails when clicked, just invites the question.
   const banner = b.mine
-    ? '<div class="own-note mb-3">You booked this from this device.</div>'
+    ? '<div class="own-note mb-3">You booked this from this computer.</div>'
     : `<div class="other-note mb-3">Booked by <strong>${escapeHtml(b.reserver)}</strong>` +
-      ` (${escapeHtml(b.department)}), not from this device.</div>`;
-  document.getElementById('detailCancel').textContent = b.mine
-    ? 'Cancel my booking'
-    : `Cancel ${b.reserver}'s booking`;
+      ` (${escapeHtml(b.department)}) on another computer.<br>` +
+      'Only that computer can cancel it — please ask them.</div>';
+  const cancelBtn = document.getElementById('detailCancel');
+  cancelBtn.hidden = !b.mine;
+  cancelBtn.textContent = 'Cancel my booking';
   document.getElementById('detailBody').innerHTML = banner + `
     <dl class="row mb-0">
       <dt class="col-4">Room</dt><dd class="col-8">${escapeHtml(b.room_name)}</dd>
@@ -609,15 +613,7 @@ async function cancelDetail() {
   if (!state.detailBooking) return;
   const b = state.detailBooking;
   const when = `${fmtStamp(b.start_at)}\u2013${fmtClock(b.end_at.slice(11, 16))}`;
-  const what = `${b.room_name}  ${when}`;
-  // Cancelling your own booking is a normal action. Cancelling someone else's is
-  // almost always a misclick, so that one names them and asks twice.
-  if (b.mine) {
-    if (!confirm(`Cancel your booking?\n\n${what}`)) return;
-  } else {
-    if (!confirm(`This booking belongs to ${b.reserver} (${b.department}).\n\n${what}\n\nCancel it anyway?`)) return;
-    if (!confirm(`Really cancel ${b.reserver}'s booking?`)) return;
-  }
+  if (!confirm(`Cancel your booking?\n\n${b.room_name}  ${when}`)) return;
   try {
     await api(`/api/bookings/${state.detailBooking.id}`, { method: 'DELETE' });
     detailModal.hide();

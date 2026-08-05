@@ -3,7 +3,7 @@
 Web app for booking company meeting rooms. Pick a date and time and only the rooms
 free for that slot show up; the whole company's schedule is visible on a timeline.
 
-Current version: v1.7.1. UI is in English.
+Current version: v1.8.0. UI is in English.
 
 The version shown in the app header comes from `package.json`, so bump it there
 when releasing — it's how you confirm which build is actually deployed.
@@ -129,16 +129,27 @@ request. The server stores it against the booking and tells each browser which
 bookings are its own — it never sends anyone else's id back, so the id is not
 something one user can learn about another.
 
-The schedule rings your own bookings, the detail panel says whether the booking
-came from this device or names who made it, and the cancel button reads `Cancel
-my booking` or `Cancel Somchai's booking` accordingly. Cancelling your own asks
-once; cancelling someone else's names them and asks twice.
+The schedule rings your own bookings and the detail panel says whether the
+booking came from this computer or names who made it.
 
-This stops accidents, not impersonation — clearing browser storage is enough to
-become a new device, and cancellation is still unrestricted server-side. That is
-the trade for having no login: with roughly one PC per person the id behaves like
-an identity, and the failure it actually prevents is the misclick. Real
-enforcement waits for `/checklogin`.
+**A booking can only be cancelled from the computer that made it.** The server
+refuses anything else with a 403 naming the person to ask, and the cancel button
+is not shown at all for someone else's booking — a hidden button is not a rule,
+so the rule lives on the server and the hiding is only there to save the click.
+
+Two exceptions, both deliberate. A booking with no device recorded — made before
+this rule existed, or from a script — can be cancelled by anyone, because
+otherwise nothing could ever clear it. And once a real login exists the server
+will know who is asking, so the rule will belong to the user rather than the
+browser; today it applies to the no-login mode only.
+
+What this does not do is stop impersonation: clearing browser storage makes a
+new device, and someone who does that can book as anyone. It stops the misclick,
+which with roughly one PC per person is the failure that actually happens.
+
+The practical cost is that a booking cannot be cancelled on someone's behalf
+while they are away. Whoever administers the database can clear it; there is no
+in-app override, because without a login there is nobody to grant it to.
 
 Cancellation is a soft delete (status becomes `cancelled`, the row stays for
 analytics) so the slot frees up and it drops off the schedule but the history is
@@ -160,7 +171,7 @@ the proxy's address.
 | GET | `/api/bookings` | List bookings (`room_id` / `from` / `to` / `status`; confirmed only unless `status=all`). With no `from` and no `to` it returns the last 30 days through the end of the booking window rather than everything ever booked |
 | POST | `/api/bookings` | Create booking |
 | PUT | `/api/bookings/:id` | Update booking |
-| DELETE | `/api/bookings/:id` | Cancel booking |
+| DELETE | `/api/bookings/:id` | Cancel booking. 403 unless `X-Device-Id` matches the one that created it |
 | GET | `/api/stats?from=&to=` | Utilization stats for a date range |
 
 ## Deploying to Render (free plan)
