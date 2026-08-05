@@ -60,9 +60,13 @@ const config = {
     businessEndHour: toInt(process.env.BUSINESS_END_HOUR, 20),
     windowDefaultDays: toInt(process.env.BOOKING_WINDOW_DEFAULT_DAYS, 90),
     windowHrDays: toInt(process.env.BOOKING_WINDOW_HR_DAYS, 180),
+    // Matched against the department the booking is filed under, as a
+    // case-insensitive substring. Keep it in step with ./departments.js —
+    // renaming the HR department there without changing this would quietly
+    // drop it back to the 90-day window.
     hrDepartments: toList(process.env.HR_DEPARTMENTS).length
       ? toList(process.env.HR_DEPARTMENTS)
-      : ['HR', 'Human Resources', 'Recruiting', 'People', 'Talent'],
+      : ['GA.HR', 'HR'],
     departments: DEPARTMENTS,
   },
 };

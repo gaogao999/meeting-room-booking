@@ -9,19 +9,28 @@
 const LOCATION_ORDER = ['Bangna Office', 'Factory 1', 'Factory 2', 'Factory 3'];
 
 // Bookings are coloured by department so the same team reads the same colour
-// everywhere (schedule, legend, analytics).
+// everywhere (schedule, legend, analytics). One entry per department in
+// src/departments.js, spread around the wheel rather than left to the fallback
+// hash, which with twelve departments and eight fallback colours would put some
+// pair of them in the same colour on the same screen. All dark enough to carry
+// the white label text.
 const DEPT_COLORS = {
-  engineering: '#2563eb',
-  sales: '#0f766e',
-  'quality assurance': '#b45309',
-  'production control': '#6d28d9',
-  hr: '#be185d',
-  'human resources': '#be185d',
-  'general affairs': '#475569',
-  maintenance: '#15803d',
+  pe: '#1d4ed8',
+  ec: '#0369a1',
+  cd: '#0f766e',
+  pd: '#15803d',
+  wh: '#4d7c0f',
+  qa: '#b45309',
+  sales: '#c2410c',
+  pur: '#b91c1c',
+  acct: '#be185d',
+  boi: '#a21caf',
+  'ga.hr': '#6d28d9',
+  it: '#475569',
 };
 
-// Fallback palette for departments not in the map above (all dark enough for white text)
+// For anything not in the map — bookings made under a department that has since
+// been renamed, mostly. Deterministic, so at least it stays put.
 const PALETTE = ['#2563eb', '#0f766e', '#b45309', '#6d28d9', '#be185d', '#475569', '#15803d', '#0e7490'];
 
 // A number this browser makes up for itself the first time it books, so the app
