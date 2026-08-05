@@ -273,6 +273,22 @@ router.put('/:id', (req, res) => {
 router.delete('/:id', (req, res) => {
   const existing = db.prepare('SELECT * FROM bookings WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Booking not found.' });
+
+  // Only the browser that made a booking may cancel it. Enforced here rather
+  // than by hiding the button, because a hidden button is not a rule.
+  //
+  // Two things are deliberately still allowed. A booking with no device
+  // recorded — made before this rule, or from a script — can be cancelled by
+  // anyone, otherwise nothing could ever clear it. And with a real login the
+  // server knows who is asking, so the rule will belong to the user rather than
+  // the browser; until that exists this applies to the no-login mode only.
+  const authed = req.user?.mode !== 'mock';
+  if (!authed && existing.device_id && existing.device_id !== deviceOf(req)) {
+    return res.status(403).json({
+      error: `This booking was made by ${existing.reserver} (${existing.department}) on another computer, so it can only be cancelled there.`,
+    });
+  }
+
   db.prepare("UPDATE bookings SET status = 'cancelled' WHERE id = ?").run(req.params.id);
   res.json({ ok: true });
 });
