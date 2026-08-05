@@ -3,7 +3,7 @@
 Web app for booking company meeting rooms. Pick a date and time and only the rooms
 free for that slot show up; the whole company's schedule is visible on a timeline.
 
-Current version: v2.0.1. UI is in English.
+Current version: v2.1.0. UI is in English.
 
 The version shown in the app header comes from `package.json`, so bump it there
 when releasing — it's how you confirm which build is actually deployed.
@@ -22,8 +22,9 @@ when releasing — it's how you confirm which build is actually deployed.
   the grid already says when it is but not who has it.
 - Booking window differs by department: HR (`GA.HR`) can book up to 6 months out
   (180 days), everyone else up to 3 months (90 days).
-- No double-booking — overlap check and insert happen in one transaction, so two
-  people can't grab the same slot at once.
+- No double-booking — the overlap check and the insert happen in one transaction
+  under a per-room lock, so two people cannot take the same slot at once, and a
+  trigger applies the same rule to anything written around the application.
 - Analytics page — room utilization, usage by department, a day×hour heatmap,
   average duration, cancellation rate. `Export CSV` downloads the figures for
   the selected range (summary, per room, per department, and the heatmap as a
@@ -164,7 +165,10 @@ in-app override, because without a login there is nobody to grant it to.
 
 Cancellation is a soft delete (status becomes `cancelled`, the row stays for
 analytics) so the slot frees up and it drops off the schedule but the history is
-kept.
+kept. `cancelled_at` and `cancelled_device` record when it happened and from
+which browser — "who cancelled my meeting?" is the first thing anyone asks, and
+overwriting the status alone could not answer it. `updated_at` moves on any
+change.
 
 The requester's IP is recorded on each booking as well. It is never returned to
 any browser and appears on no screen; it exists so a problem can be looked into
