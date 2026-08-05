@@ -447,9 +447,14 @@
 
 /* Your own bookings, so you can pick yours out of a full day at a glance and
    know which one you are about to cancel. A ring rather than a different
-   colour: the colour already means the department. */
+   colour: the colour already means the department.
+   Drawn inside the bar, not around it. An outer ring is clipped by the
+   timeline's own scrolling on any booking that reaches the start or end of the
+   day, and a booking running 8:00-20:00 lost both of its ends. */
 .tl-booking.is-mine {
-  box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--brand), 0 1px 3px rgba(16, 32, 48, 0.22);
+  box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 3.5px var(--brand),
+    0 1px 3px rgba(16, 32, 48, 0.22);
+  padding: 3px 10px;
 }
 .own-note,
 .other-note {
