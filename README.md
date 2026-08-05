@@ -3,7 +3,7 @@
 Web app for booking company meeting rooms. Pick a date and time and only the rooms
 free for that slot show up; the whole company's schedule is visible on a timeline.
 
-Current version: v2.1.0. UI is in English.
+Current version: v2.2.0. UI is in English.
 
 The version shown in the app header comes from `package.json`, so bump it there
 when releasing — it's how you confirm which build is actually deployed.
@@ -61,11 +61,20 @@ npm start
 Then open http://localhost:3000 — the meeting rooms are registered automatically
 on first start. `npm run dev` restarts on file changes.
 
-`npm run db:deploy` is `prisma migrate deploy`: it applies any migration the
-database has not seen and does nothing when there is nothing to apply, so it is
-safe to run on every deployment. It only ever adds — no existing booking is
-touched. `npm run db:push` is the shortcut Prisma offers for a scratch database;
-prefer `db:deploy` anywhere that holds real bookings.
+Either `npm run db:deploy` or `npm run db:push` leaves the database complete —
+both finish by applying `prisma/guards.sql`, which carries the constraints and
+the trigger Prisma's schema cannot express. Use whichever your process prefers.
+
+They differ in how the tables get there. `db:deploy` is `prisma migrate deploy`:
+it applies migrations the database has not seen and does nothing when there are
+none, so it is safe on every deployment and only ever adds. `db:push` builds the
+tables from `schema.prisma` directly, which is Prisma's shortcut for a scratch
+database. Prefer `db:deploy` anywhere that holds real bookings.
+
+One thing to watch: `npx prisma db push` **run on its own** creates the tables
+and nothing else — no constraints, no trigger. The app still enforces every rule
+itself and works fine, but the database stops being a second line of defence.
+It says so at startup when it notices, and `npm run db:guards` fixes it.
 
 ## Rooms
 
@@ -248,6 +257,7 @@ backup set rather than assuming it.
 prisma/
   schema.prisma              the tables, as Prisma sees them
   migrations/                versioned SQL, applied by `npm run db:deploy`
+  guards.sql                 constraints + trigger; applied by either db: script
 src/
   server.js               entry point, security headers, static files
   config.js                .env loading / config
@@ -260,6 +270,8 @@ src/
     auth.js, rooms.js (read-only), bookings.js, availability.js, stats.js
   services/
     bookingRules.js         slot/hours/window/length validation
+scripts/
+  apply-guards.js           runs guards.sql, idempotently
 public/
   common.js                 helpers shared by all three pages
   index.html / app.js       booking + schedule + availability
