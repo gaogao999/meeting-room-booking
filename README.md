@@ -3,7 +3,7 @@
 Web app for booking company meeting rooms. Pick a date and time and only the rooms
 free for that slot show up; the whole company's schedule is visible on a timeline.
 
-Current version: v1.8.1. UI is in English.
+Current version: v2.0.0. UI is in English.
 
 The version shown in the app header comes from `package.json`, so bump it there
 when releasing — it's how you confirm which build is actually deployed.
@@ -31,30 +31,37 @@ when releasing — it's how you confirm which build is actually deployed.
 
 ## Tech stack
 
-- Node.js 22 or newer / Express. Tested on 22 LTS and on 26; `.node-version` pins
-  22.22.2 for the Render deploy, which is the only place that file is read.
+- Node.js 22 or newer / Express. Tested on 22 LTS and on 26; `.node-version`
+  pins 22.22.2 for anything that reads it (nvm, fnm, asdf).
 - HTML + Bootstrap 5.3.3, vendored under `public/vendor/` — no CDN dependency, no build step.
   The JS is the plain build, not the bundle: the app uses the modal and the
   dismissible alert, neither of which needs Popper. Adding a tooltip, dropdown or
   popover later means switching to `bootstrap.bundle.min.js`.
-- SQLite via better-sqlite3
+- SQL Server, accessed through Prisma — the company standard, on the KAGA server
 - No login for now: department picked from a list, name typed once and remembered
   by the browser. Ready to switch to the existing `/checklogin`
 - Config/secrets in `.env`
 
-Runtime dependencies are just `express`, `dotenv`, `better-sqlite3` — nothing else,
-no outbound network calls.
+Runtime dependencies are `express`, `dotenv` and `@prisma/client`. The only
+outbound connection the app makes is to the database.
 
 ## Setup
 
 ```bash
-npm install
-cp .env.example .env
+npm ci
+cp .env.example .env      # then put the real DATABASE_URL in it
+npm run db:deploy         # create/upgrade the tables
 npm start
 ```
 
-Then open http://localhost:3000 — rooms are created automatically on first run.
-`npm run dev` restarts on file changes.
+Then open http://localhost:3000 — the meeting rooms are registered automatically
+on first start. `npm run dev` restarts on file changes.
+
+`npm run db:deploy` is `prisma migrate deploy`: it applies any migration the
+database has not seen and does nothing when there is nothing to apply, so it is
+safe to run on every deployment. It only ever adds — no existing booking is
+touched. `npm run db:push` is the shortcut Prisma offers for a scratch database;
+prefer `db:deploy` anywhere that holds real bookings.
 
 ## Rooms
 
@@ -90,9 +97,7 @@ can exist in both factories.
 | --- | --- | --- |
 | `PORT` | Listen port | 3000 |
 | `NODE_ENV` | Read by Express itself, not by this app's config | development |
-| `DB_PATH` | SQLite file path — normally leave unset, see Operations below | auto |
-| `BACKUP_DIR` | Where `npm run backup` writes to | ./backups |
-| `BACKUP_KEEP` | How many backups to keep | 14 |
+| `DATABASE_URL` | SQL Server connection string — required | — |
 | `AUTH_MODE` | `mock` (no login) or `checklogin` | mock |
 | `TRUST_PROXY` | Set when a reverse proxy is in front, so the recorded IP is the client's | off |
 | `SLOT_MINUTES` | Booking increment | 10 |
@@ -177,118 +182,69 @@ the proxy's address.
 | DELETE | `/api/bookings/:id` | Cancel booking. 403 unless `X-Device-Id` matches the one that created it |
 | GET | `/api/stats?from=&to=` | Utilization stats for a date range |
 
-## Deploying to Render (free plan)
+## Deploying
 
-Needs a backend (Express + SQLite), so static hosting won't work. Use the included
-`render.yaml`:
+The app runs on the KAGA server against the SQL Server there. It needs Node 22
+or newer, network access to the database, and nothing else — no build tooling
+beyond `prisma generate`, which `npm ci` runs for you.
 
-1. dashboard.render.com → New → Blueprint
-2. pick this repo
-3. it's live at `https://<service-name>.onrender.com` a few minutes later
+```bash
+npm ci              # installs and generates the Prisma client
+npm run db:deploy   # applies any pending migration
+npm start           # or however the server keeps it running
+```
 
-Node version is pinned via `.node-version` — Render reads it, and so do nvm,
-fnm and asdf, which is why it is the only place the exact version is written. The free plan sleeps when idle and its disk is
-ephemeral — bookings reset on redeploy/wake and default rooms get reseeded. For
-persistence, add a paid Render Disk and point `DB_PATH` at the mounted path.
+`/healthz` answers `{"ok":true}` once it is up, for whatever watches the
+process.
 
-## Security
-
-No dependency does this — it is a middleware and a few validation rules.
-
-Every response carries a Content-Security-Policy of `self`, plus `nosniff`,
-`X-Frame-Options: DENY` and `Referrer-Policy: no-referrer`. The policy is
-possible because nothing loads from anywhere else: no CDN, no fonts, no
-analytics. Inline styles are allowed (the timeline positions its bars with style
-attributes); inline scripts are not, which is the half that keeps injected
-markup from running. `X-Powered-By` is off.
-
-Everything a user types is escaped on the way into the page, and every query is
-parameterised — the payloads worth trying (`'; DROP TABLE bookings;--` and
-friends) are stored and displayed as the text they are. Request bodies are
-capped at 32kb and department, name and purpose have length limits, so a booking
-cannot be used to park a large blob in the database. Unexpected 500s log their
-detail and return a generic message.
-
-What is deliberately open: there is no login, so anyone who can reach the port
-can book and can cancel. See Authentication above.
-
-## Performance
-
-At around 9,000 bookings — a year of real use — a day of the schedule comes back
-in about 3ms, the availability check in about 2ms, and a month of analytics in
-about 4ms.
-
-What that rests on: `idx_bookings_status_start` covers the "confirmed bookings
-in this range, in time order" question that the schedule and the analytics both
-ask, so neither scans the table. The analytics compare `start_at` as a range
-rather than wrapping it in `substr()`, which would have made the index unusable.
-Availability asks one grouped question instead of one query per room. Bootstrap
-is served with a long cache lifetime while the app's own files stay on
-revalidation, so a deploy takes effect on the next page load.
+There is no longer a public demo. It ran on Render against a file database,
+which this version no longer has; SQL Server is not something Render offers.
+The KAGA deployment is the place to show it now.
 
 ## Operations: updating without losing bookings
 
-The database defaults to a sibling directory next to the app folder —
-`meeting-room-booking-data/booking.db` sitting alongside `meeting-room-booking/` —
-computed from where the app itself is installed. No config needed, and it means a
-routine "swap in the new version" deploy, which replaces the app directory
-wholesale, never touches the data. Only set `DB_PATH` if you actually want the
-file somewhere specific; if it ever resolves back inside the app directory the
-app prints a warning on startup so that doesn't happen silently.
+The bookings live in SQL Server, not in the application folder, so replacing the
+app wholesale cannot touch them. Backups are the database server's, which means
+they are the DBA's existing routine rather than a second thing to remember.
 
 Update procedure:
 
 ```bash
-npm run backup      # snapshot, safe to run while serving traffic
 # swap in the new app files
 npm ci
-# restart however you normally do (systemd / pm2 / container)
+npm run db:deploy
+# restart however you normally do (systemd / pm2 / Windows service)
 ```
 
-Use `npm ci`, not `npm install`. better-sqlite3 ships a native binary built for
-a specific Node major version, and `npm install` will happily leave an existing
-`node_modules` in place — so after a Node upgrade the app starts and then dies
-with `NODE_MODULE_VERSION 115 ... requires 127`. `npm ci` wipes `node_modules`
-first, so the binary always matches the Node actually running it.
+Use `npm ci`, not `npm install`: it installs exactly what the lockfile says and
+regenerates the Prisma client for the schema in this checkout, so the code and
+the client can never be a version apart.
 
-That binary is also the one thing tied to the Node version, so it decides which
-Node the app runs on. better-sqlite3 13 publishes prebuilt binaries for Node 22
-through 26 — installs take seconds and need no compiler. Going back to an older
-better-sqlite3, or forward to a Node it has no prebuild for, means falling back
-to building from source, which needs a toolchain on the server and fails outright
-on a Node whose V8 API the older release predates.
+Schema changes ship as Prisma migrations under `prisma/migrations/`. Each runs
+once, in a transaction, and only adds to what is there, so an update never means
+recreating anything. `npm run db:deploy` applies whatever is pending and prints
+`No pending migrations to apply.` when there is nothing to do. A migration that
+has already been applied must not be edited — write a new one, or the database
+that already ran it will silently disagree with the schema.
 
-No manual database step. Schema changes ship as migrations tracked by SQLite's
-`user_version` — each one runs once, in a transaction, and only adds to what's
-there, so an update never means recreating the database. The log line on boot
-(`Database migrated 1 -> 2`) tells you it ran. Adding a schema change later means
-appending a new entry to `src/db/migrations.js`; existing entries shouldn't be
-edited or renumbered, since a database that already applied one would just skip it.
-
-`npm run init-db` prints the schema version the database is at and the version
-the code expects — a quick way to confirm an update actually applied. It creates
-the database if it isn't there yet, and is safe to run against one that already
-holds bookings.
-
-Backups (`npm run backup`) use SQLite's online backup API, so they're consistent
-even while the app is live — fine to put on a cron job. Old ones beyond
-`BACKUP_KEEP` get pruned automatically. To restore, stop the app, copy a backup
-over `DB_PATH`, start it back up.
+Backups are the database server's. `npm run backup` is gone with SQLite — the
+bookings are in SQL Server now and whatever protects the rest of that instance
+protects them too. Worth confirming with IT that this database is in their
+backup set rather than assuming it.
 
 ## Project structure
 
 ```
+prisma/
+  schema.prisma              the tables, as Prisma sees them
+  migrations/                versioned SQL, applied by `npm run db:deploy`
 src/
   server.js               entry point, security headers, static files
   config.js                .env loading / config
   departments.js           the department list for the booking form
   db/
-    index.js              connection, migrations, room sync on boot
-    migrations.js         schema migrations (user_version)
-    schema.sql             baseline schema
+    index.js              Prisma client + room sync on boot
     roomCatalog.js        the room list + sync (edit this to change rooms)
-    init.js                 report/apply schema version
-    backup.js               timestamped backup + retention
   middleware/auth.js       mock / checklogin
   routes/
     auth.js, rooms.js (read-only), bookings.js, availability.js, stats.js
@@ -302,6 +258,4 @@ public/
   timeline.css               all the styling
   favicon.svg
   vendor/                    Bootstrap 5
-scripts/
-  ensure-native-module.js   postinstall check that better-sqlite3 loads
 ```

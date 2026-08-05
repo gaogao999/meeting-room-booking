@@ -1,22 +1,25 @@
 {
   "name": "meeting-room-booking",
-  "version": "1.8.1",
-  "description": "会社の会議室を登録・予約するシステム",
+  "version": "2.0.0",
+  "description": "\u4f1a\u793e\u306e\u4f1a\u8b70\u5ba4\u3092\u767b\u9332\u30fb\u4e88\u7d04\u3059\u308b\u30b7\u30b9\u30c6\u30e0",
   "main": "src/server.js",
   "type": "commonjs",
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "postinstall": "node scripts/ensure-native-module.js",
+    "postinstall": "prisma generate",
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "init-db": "node src/db/init.js",
-    "backup": "node src/db/backup.js"
+    "db:deploy": "prisma migrate deploy",
+    "db:push": "prisma db push"
   },
   "dependencies": {
-    "better-sqlite3": "^13.0.2",
+    "@prisma/client": "^6.19.3",
     "dotenv": "^16.4.5",
     "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "prisma": "^6.19.3"
   }
 }

@@ -1,0 +1,65 @@
+// Schema for SQL Server, managed with Prisma — the company standard, and the
+// database is provisioned on the KAGA server.
+//
+// Field names stay snake_case so the JSON the frontend receives is unchanged
+// (the UI reads r.is_active, b.room_id, and so on).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+// 会議室
+model rooms {
+  id          Int        @id @default(autoincrement())
+  name        String     @db.NVarChar(200)
+  location    String?    @db.NVarChar(200)
+  capacity    Int?
+  description String?    @db.NVarChar(Max)
+  is_active   Boolean    @default(true)
+  created_at  DateTime   @default(now())
+  bookings    bookings[]
+
+  // A room name is unique within a location (e.g. "Conference room 1" can
+  // exist in both Factory 1 and Factory 2).
+  @@unique([name, location])
+}
+
+// 予約
+// start_at / end_at are local ISO8601 strings ("YYYY-MM-DDTHH:MM"), not UTC
+// datetimes. The frontend and the statistics slice these strings directly, and
+// comparing them as text sorts and ranges correctly because the format is fixed
+// width — exactly 16 characters.
+model bookings {
+  id         Int      @id @default(autoincrement())
+  room_id    Int
+  department String   @db.NVarChar(60)
+  reserver   String   @db.NVarChar(80)
+  purpose    String?  @db.NVarChar(Max)
+  start_at   String   @db.VarChar(16)
+  end_at     String   @db.VarChar(16)
+  status     String   @default("confirmed") @db.VarChar(20)
+  created_by String?  @db.NVarChar(80)
+  created_at DateTime @default(now())
+
+  // Which browser made the booking, and from where. Neither is ever sent back
+  // to a browser: device_id decides whether someone may cancel a booking, and
+  // created_ip exists only for looking into a problem afterwards.
+  device_id  String?  @db.VarChar(64)
+  created_ip String?  @db.VarChar(64)
+
+  room rooms @relation(fields: [room_id], references: [id], onDelete: Cascade)
+
+  // The overlap check made before every booking: one room, confirmed only, does
+  // anything cross this time range. status sits in the key so the whole question
+  // is answered from the index without going back to the table for each
+  // candidate row.
+  @@index([room_id, status, start_at, end_at])
+  // "Confirmed bookings in this date range, in time order" — what the schedule
+  // and the analytics both ask for.
+  @@index([status, start_at])
+}
