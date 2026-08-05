@@ -29,8 +29,8 @@ services:
     healthCheckPath: /healthz
     autoDeploy: true
     envVars:
-      - key: NODE_VERSION
-        value: "22.22.2"
+      # Node のバージョンは .node-version に書いてある。ここで二重に指定すると
+      # 片方だけ更新されたときに食い違うため、あえて置かない。
       - key: NODE_ENV
         value: production
       # ログインなしで起動（既存ログインとの連携は後日）

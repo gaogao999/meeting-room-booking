@@ -3,7 +3,7 @@
 Web app for booking company meeting rooms. Pick a date and time and only the rooms
 free for that slot show up; the whole company's schedule is visible on a timeline.
 
-Current version: v1.8.0. UI is in English.
+Current version: v1.8.1. UI is in English.
 
 The version shown in the app header comes from `package.json`, so bump it there
 when releasing — it's how you confirm which build is actually deployed.
@@ -33,7 +33,10 @@ when releasing — it's how you confirm which build is actually deployed.
 
 - Node.js 22 or newer / Express. Tested on 22 LTS and on 26; `.node-version` pins
   22.22.2 for the Render deploy, which is the only place that file is read.
-- HTML + Bootstrap 5.3.3, vendored under `public/vendor/` — no CDN dependency, no build step
+- HTML + Bootstrap 5.3.3, vendored under `public/vendor/` — no CDN dependency, no build step.
+  The JS is the plain build, not the bundle: the app uses the modal and the
+  dismissible alert, neither of which needs Popper. Adding a tooltip, dropdown or
+  popover later means switching to `bootstrap.bundle.min.js`.
 - SQLite via better-sqlite3
 - No login for now: department picked from a list, name typed once and remembered
   by the browser. Ready to switch to the existing `/checklogin`
@@ -183,8 +186,8 @@ Needs a backend (Express + SQLite), so static hosting won't work. Use the includ
 2. pick this repo
 3. it's live at `https://<service-name>.onrender.com` a few minutes later
 
-Node version is pinned via `.node-version` so better-sqlite3 gets a prebuilt
-binary instead of compiling. The free plan sleeps when idle and its disk is
+Node version is pinned via `.node-version` — Render reads it, and so do nvm,
+fnm and asdf, which is why it is the only place the exact version is written. The free plan sleeps when idle and its disk is
 ephemeral — bookings reset on redeploy/wake and default rooms get reseeded. For
 persistence, add a paid Render Disk and point `DB_PATH` at the mounted path.
 
