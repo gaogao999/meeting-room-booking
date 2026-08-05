@@ -2,7 +2,8 @@
 
 const express = require('express');
 const db = require('../db');
-const { validateBooking } = require('../services/bookingRules');
+const config = require('../config');
+const { validateBooking, checkLengths } = require('../services/bookingRules');
 
 const router = express.Router();
 
@@ -87,7 +88,24 @@ const updateIfFree = db.transaction((data) => {
 // By default only confirmed bookings are returned (cancelled ones are kept in the
 // database for analytics but hidden from the schedule). Pass status=all to include them.
 router.get('/', (req, res) => {
-  const { room_id, from, to, status } = req.query;
+  const { room_id, status } = req.query;
+  let { from, to } = req.query;
+  // With no range at all this returned every booking ever made — a couple of
+  // megabytes after a year, for a screen that only ever shows one day. Default
+  // to the window bookings can actually fall in: a month back for the analytics
+  // and the longest booking window forward. An explicit from/to still goes
+  // through untouched.
+  if (!from && !to) {
+    const day = (offset) => {
+      const d = new Date();
+      d.setDate(d.getDate() + offset);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+        d.getDate()
+      ).padStart(2, '0')}T00:00`;
+    };
+    from = day(-30);
+    to = day(config.booking.windowHrDays + 1);
+  }
   const clauses = [];
   const params = [];
   if (status !== 'all') {
@@ -150,6 +168,8 @@ router.post('/', (req, res) => {
   if (!reserver) {
     return res.status(400).json({ error: 'Reserver name is required.' });
   }
+  const lengths = checkLengths({ department, reserver, purpose });
+  if (!lengths.ok) return res.status(400).json({ error: lengths.error });
 
   const room = db.prepare('SELECT * FROM rooms WHERE id = ? AND is_active = 1').get(roomId);
   if (!room) {
@@ -210,6 +230,8 @@ router.put('/:id', (req, res) => {
   const endAt = body.end_at !== undefined ? body.end_at : existing.end_at;
 
   if (!reserver) return res.status(400).json({ error: 'Reserver name is required.' });
+  const lengths = checkLengths({ department, reserver, purpose });
+  if (!lengths.ok) return res.status(400).json({ error: lengths.error });
 
   const room = db.prepare('SELECT * FROM rooms WHERE id = ? AND is_active = 1').get(roomId);
   if (!room) {

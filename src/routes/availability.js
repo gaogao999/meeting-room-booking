@@ -23,21 +23,23 @@ router.get('/', (req, res) => {
   const rooms = db
     .prepare('SELECT * FROM rooms WHERE is_active = 1 ORDER BY location IS NULL, location, name')
     .all();
-  // 半開区間 [start, end) の重複判定
-  const overlapStmt = db.prepare(
-    `SELECT * FROM bookings
-       WHERE room_id = ? AND status = 'confirmed'
-         AND start_at < ? AND end_at > ?
-       ORDER BY start_at`
-  );
-
-  const available = [];
-  const busy = [];
-  for (const room of rooms) {
-    const conflicts = overlapStmt.all(room.id, endAt, startAt);
-    if (conflicts.length === 0) available.push(room);
-    else busy.push({ room, conflicts });
+  // 半開区間 [start, end) の重複判定。
+  // One query for every room rather than one per room, and it asks only which
+  // rooms are taken — who booked them is on the schedule, and this endpoint has
+  // no reason to hand it out.
+  const taken = new Map();
+  for (const row of db
+    .prepare(
+      `SELECT room_id, COUNT(*) AS n FROM bookings
+        WHERE status = 'confirmed' AND start_at < ? AND end_at > ?
+        GROUP BY room_id`
+    )
+    .all(endAt, startAt)) {
+    taken.set(row.room_id, row.n);
   }
+
+  const available = rooms.filter((r) => !taken.has(r.id));
+  const busy = rooms.filter((r) => taken.has(r.id)).map((r) => ({ room: r, conflicts: taken.get(r.id) }));
 
   res.json({ start_at: startAt, end_at: endAt, available, busy });
 });

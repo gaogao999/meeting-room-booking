@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Meeting Room Booking">
+  <rect width="32" height="32" rx="7" fill="#0b3d91"/>
+  <rect x="6" y="8.5" width="20" height="4" rx="2" fill="#ffc107"/>
+  <rect x="6" y="15" width="13" height="4" rx="2" fill="#ffffff" opacity=".85"/>
+  <rect x="6" y="21.5" width="17" height="4" rx="2" fill="#ffffff" opacity=".5"/>
+</svg>

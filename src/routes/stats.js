@@ -38,20 +38,26 @@ router.get('/', (req, res) => {
     .prepare('SELECT * FROM rooms WHERE is_active = 1 ORDER BY location IS NULL, location, name')
     .all();
 
+  // Compared as strings rather than with substr(): start_at is a fixed-width
+  // "YYYY-MM-DDTHH:MM", so a plain range covers the same days and can use the
+  // index, where wrapping the column in a function cannot.
+  const rangeStart = `${from}T00:00`;
+  const rangeEnd = `${to}T23:59`;
+
   const rows = db
     .prepare(
       `SELECT b.*, r.name AS room_name, r.location AS room_location
        FROM bookings b JOIN rooms r ON r.id = b.room_id
-       WHERE b.status = 'confirmed' AND substr(b.start_at, 1, 10) BETWEEN ? AND ?`
+       WHERE b.status = 'confirmed' AND b.start_at BETWEEN ? AND ?`
     )
-    .all(from, to);
+    .all(rangeStart, rangeEnd);
 
   const cancelledCount = db
     .prepare(
       `SELECT COUNT(*) AS c FROM bookings
-       WHERE status = 'cancelled' AND substr(start_at, 1, 10) BETWEEN ? AND ?`
+       WHERE status = 'cancelled' AND start_at BETWEEN ? AND ?`
     )
-    .get(from, to).c;
+    .get(rangeStart, rangeEnd).c;
 
   const perRoom = new Map(
     rooms.map((r) => [r.id, { id: r.id, name: r.name, location: r.location, minutes: 0, count: 0 }])

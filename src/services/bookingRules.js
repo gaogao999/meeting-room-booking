@@ -62,6 +62,21 @@ function bookingWindowEnd(department, now = new Date()) {
 }
 
 // 予約内容を検証する。問題があれば { ok:false, error } を返す。
+// Long enough for any real department code, name or meeting title, short
+// enough that nobody can park a novel in the database.
+const MAX_LENGTHS = { department: 60, reserver: 80, purpose: 200 };
+
+function checkLengths({ department, reserver, purpose }) {
+  for (const [field, max] of Object.entries(MAX_LENGTHS)) {
+    const value = { department, reserver, purpose }[field];
+    if (value && String(value).length > max) {
+      const label = field[0].toUpperCase() + field.slice(1);
+      return { ok: false, error: `${label} must be ${max} characters or fewer.` };
+    }
+  }
+  return { ok: true };
+}
+
 function validateBooking({ startAt, endAt, department }, now = new Date()) {
   const start = parseLocal(startAt);
   const end = parseLocal(endAt);
@@ -137,4 +152,5 @@ module.exports = {
   parseLocal,
   formatLocal,
   validateBooking,
+  checkLengths,
 };
