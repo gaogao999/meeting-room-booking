@@ -45,6 +45,13 @@ model bookings {
   status     String   @default("confirmed") @db.VarChar(20)
   created_by String?  @db.NVarChar(80)
   created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Who cancelled a booking and when. Overwriting status told us a booking was
+  // gone but not by whose hand — the first question anyone asks when a meeting
+  // disappears from the schedule.
+  cancelled_at     DateTime?
+  cancelled_device String?   @db.VarChar(64)
 
   // Which browser made the booking, and from where. Neither is ever sent back
   // to a browser: device_id decides whether someone may cancel a booking, and
@@ -62,4 +69,10 @@ model bookings {
   // "Confirmed bookings in this date range, in time order" — what the schedule
   // and the analytics both ask for.
   @@index([status, start_at])
+
+  // The database also enforces, in 1_integrity, what Prisma's schema language
+  // cannot express: end after start, a status that is one of the two real ones,
+  // a well-formed timestamp, and no two confirmed bookings overlapping in one
+  // room. Those live in the migration SQL, so `prisma migrate deploy` applies
+  // them and `prisma db push` does not — deploy is the one to use.
 }

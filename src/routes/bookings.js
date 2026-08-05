@@ -14,11 +14,12 @@ function deviceOf(req) {
   return id && /^[a-f0-9]{8,64}$/i.test(id) ? id : null;
 }
 
-// device_id and created_ip stay on the server. The browser is told whether a
-// booking is its own, not what everyone else's identifiers are. The joined room
-// is flattened to room_name so the JSON is the shape the frontend already reads.
+// The identifiers stay on the server. A browser is told whether a booking is its
+// own, never what anyone else's device id is — including the one that cancelled
+// something. The joined room is flattened to room_name so the JSON keeps the
+// shape the frontend already reads.
 function present(row, device) {
-  const { device_id, created_ip, room, ...rest } = row;
+  const { device_id, created_ip, cancelled_device, room, ...rest } = row;
   return {
     ...rest,
     room_name: room ? room.name : rest.room_name,
@@ -313,7 +314,17 @@ router.delete('/:id', async (req, res, next) => {
       });
     }
 
-    await prisma.bookings.update({ where: { id }, data: { status: 'cancelled' } });
+    await prisma.bookings.update({
+      where: { id },
+      // Record who dropped it and when. Overwriting the status alone said a
+      // booking was gone but not by whose hand, which is the first thing anyone
+      // asks when a meeting vanishes from the schedule.
+      data: {
+        status: 'cancelled',
+        cancelled_at: new Date(),
+        cancelled_device: deviceOf(req),
+      },
+    });
     res.json({ ok: true });
   } catch (err) {
     next(err);
