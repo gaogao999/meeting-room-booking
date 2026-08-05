@@ -5,6 +5,7 @@ require('dotenv').config();
 
 // App version (surfaced in /api/config and shown in the UI)
 const pkg = require('../package.json');
+const { DEPARTMENTS } = require('./departments');
 
 // Default DB location: a sibling directory next to the app folder, e.g.
 //   .../meeting-room-booking/        (app code — replaced wholesale on updates)
@@ -44,10 +45,6 @@ const config = {
 
   auth: {
     mode: process.env.AUTH_MODE || 'mock',
-    mockUser: {
-      name: process.env.MOCK_USER_NAME || 'Dev User',
-      department: process.env.MOCK_USER_DEPARTMENT || 'General Affairs',
-    },
   },
 
   booking: {
@@ -60,6 +57,7 @@ const config = {
     hrDepartments: toList(process.env.HR_DEPARTMENTS).length
       ? toList(process.env.HR_DEPARTMENTS)
       : ['HR', 'Human Resources', 'Recruiting', 'People', 'Talent'],
+    departments: DEPARTMENTS,
   },
 };
 

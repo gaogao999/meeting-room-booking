@@ -8,13 +8,10 @@ const config = require('../config');
 //   ここでは連携ポイントのみ用意し、セッション/ヘッダからユーザーを取得する。
 async function authenticate(req, res, next) {
   try {
+    // No login: the browser sends the department and name with each booking,
+    // and remembers them locally between visits.
     if (config.auth.mode === 'mock') {
-      req.user = {
-        name: config.auth.mockUser.name,
-        department: config.auth.mockUser.department,
-        authenticated: true,
-        mode: 'mock',
-      };
+      req.user = { name: '', department: '', authenticated: false, mode: 'mock' };
       return next();
     }
 

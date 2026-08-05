@@ -3,17 +3,18 @@
 Web app for booking company meeting rooms. Pick a date and time and only the rooms
 free for that slot show up; the whole company's schedule is visible on a timeline.
 
-Current version: v1.3.1. UI is in English.
+Current version: v1.4.0. UI is in English.
 
 The version shown in the app header comes from `package.json`, so bump it there
 when releasing — it's how you confirm which build is actually deployed.
 
 ## Features
 
-- Booking flow (`Booking` page) — choose a date and start/end time, pick from the
-  rooms actually available for that slot, department and name are pre-filled from
-  the logged-in user. Bookings are in 10-minute increments and record department
-  and name.
+- Booking flow (`Booking` page) — choose a date and start/end time, then pick from
+  the rooms actually available for that slot. Bookings are in 10-minute increments
+  and record department and name. Department is a fixed list (`src/departments.js`)
+  rather than free text, so the analytics don't fragment across spellings of the
+  same team.
 - Schedule — rooms as rows, time axis 8:00–20:00, bookings drawn as a Gantt-style
   chart. Click a bar for details, click empty space to start a booking there.
 - Booking window differs by department: HR departments can book up to 6 months out
@@ -34,7 +35,8 @@ when releasing — it's how you confirm which build is actually deployed.
   22.22.2 for the Render deploy, which is the only place that file is read.
 - HTML + Bootstrap 5.3.3, vendored under `public/vendor/` — no CDN dependency, no build step
 - SQLite via better-sqlite3
-- Auth reuses the existing `/checklogin`; mock auth for local dev
+- No login for now: department picked from a list, name typed once and remembered
+  by the browser. Ready to switch to the existing `/checklogin`
 - Config/secrets in `.env`
 
 Runtime dependencies are just `express`, `dotenv`, `better-sqlite3` — nothing else,
@@ -87,9 +89,7 @@ can exist in both factories.
 | `DB_PATH` | SQLite file path — normally leave unset, see Operations below | auto |
 | `BACKUP_DIR` | Where `npm run backup` writes to | ./backups |
 | `BACKUP_KEEP` | How many backups to keep | 14 |
-| `AUTH_MODE` | `mock` or `checklogin` | mock |
-| `MOCK_USER_NAME` | Name used by mock auth | Taro Yamada |
-| `MOCK_USER_DEPARTMENT` | Department used by mock auth | General Affairs |
+| `AUTH_MODE` | `mock` (no login) or `checklogin` | mock |
 | `SLOT_MINUTES` | Booking increment | 10 |
 | `BUSINESS_START_HOUR` / `BUSINESS_END_HOUR` | Bookable hours | 8 / 20 |
 | `BOOKING_WINDOW_DEFAULT_DAYS` / `BOOKING_WINDOW_HR_DAYS` | Booking window, days ahead | 90 / 180 |
@@ -97,11 +97,21 @@ can exist in both factories.
 
 ## Authentication
 
-`AUTH_MODE=mock` during development — `MOCK_USER_NAME` / `MOCK_USER_DEPARTMENT`
-from `.env` stand in for a logged-in user. `AUTH_MODE=checklogin` currently
-takes the user from `X-User-Name` / `X-User-Department` request headers, on the
-assumption a reverse proxy sets them; calling the existing `/checklogin`
-directly is still to be written, in `src/middleware/auth.js`.
+`AUTH_MODE=mock` is the no-login mode it currently runs in: whoever is booking
+picks their department and types their name, and the browser keeps both in
+`localStorage` so they only do it once per device. Nothing is filed under a
+placeholder — an empty department or name is rejected rather than defaulted.
+
+`AUTH_MODE=checklogin` takes the user from `X-User-Name` / `X-User-Department`
+request headers, on the assumption a reverse proxy sets them, and the form
+switches to read-only so the booking is filed under the logged-in user. Calling
+the existing `/checklogin` directly is still to be written, in
+`src/middleware/auth.js`. The frontend already handles both, keyed off the `mode`
+returned by `/api/auth/me`, so turning login on is a server-side change only.
+
+Until then anyone on the network can book as anyone, and the department-based
+booking window is effectively self-declared. That is a deliberate trade: it
+replaces a whiteboard, which had no identity check either.
 
 One thing to know before wiring that up: cookies are not scoped by port, so two
 Express apps on the same host share a cookie namespace even on different ports.
@@ -194,6 +204,7 @@ over `DB_PATH`, start it back up.
 src/
   server.js               entry point
   config.js                .env loading / config
+  departments.js           the department list for the booking form
   db/
     index.js              connection, migrations, room sync on boot
     migrations.js         schema migrations (user_version)

@@ -33,13 +33,9 @@ services:
         value: "22.22.2"
       - key: NODE_ENV
         value: production
-      # 開発同様、モック認証で起動（本番の /checklogin 連携は後日）
+      # ログインなしで起動（既存ログインとの連携は後日）
       - key: AUTH_MODE
         value: mock
-      - key: MOCK_USER_NAME
-        value: 山田 太郎
-      - key: MOCK_USER_DEPARTMENT
-        value: 総務部
       # DB_PATH は未指定 → アプリはデフォルトで、アプリフォルダの外
       # (兄弟フォルダ) に自動保存する。永続ディスクを有効化する場合のみ
       # 下部のコメントを外し、DB_PATH をそのマウント先に明示する。

@@ -23,6 +23,7 @@ const state = {
     windowHrDays: 180,
     hrDepartments: [],
   },
+  authMode: 'mock',
   date: null,
   rooms: [],
   locFilter: 'All',
@@ -136,6 +137,11 @@ function fillTimeControls() {
 
 function updateRuleHint() {
   const dep = document.getElementById('department').value;
+  if (!dep) {
+    document.getElementById('ruleHint').innerHTML =
+      `Bookings are made in ${state.config.slotMinutes}-minute steps. How far ahead you can book depends on your department.`;
+    return;
+  }
   const isHr = state.config.hrDepartments.some((k) =>
     dep.toLowerCase().includes(String(k).toLowerCase())
   );
@@ -143,6 +149,54 @@ function updateRuleHint() {
   const kind = isHr ? 'HR department' : 'General department';
   document.getElementById('ruleHint').innerHTML =
     `${kind} — book up to <strong>${days} days</strong> ahead, in ${state.config.slotMinutes}-minute steps.`;
+}
+
+// Without a login there is nothing to fill the form from, so the browser
+// remembers whoever used it last. Wrapped because storage throws outright in
+// private browsing on some setups, and a booking screen that refuses to load
+// there would be worse than one that just asks for the name again.
+const ME_KEY = 'mrb.me';
+
+function remembered() {
+  try {
+    return JSON.parse(localStorage.getItem(ME_KEY) || '{}');
+  } catch (err) {
+    return {};
+  }
+}
+
+function remember(name, department) {
+  try {
+    localStorage.setItem(ME_KEY, JSON.stringify({ name, department }));
+  } catch (err) {
+    /* not fatal — the fields just start empty next time */
+  }
+}
+
+function fillDepartments(list, selected) {
+  const el = document.getElementById('department');
+  el.innerHTML =
+    '<option value="">Select your department</option>' +
+    list.map((d) => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+  if (selected && list.includes(selected)) el.value = selected;
+}
+
+// The header chip shows who the booking will be filed under.
+function updateUserChip(name, department) {
+  const chip = document.getElementById('currentUser');
+  if (!name) {
+    chip.hidden = true;
+    return;
+  }
+  chip.hidden = false;
+  document.getElementById('userName').textContent = name;
+  document.getElementById('userDept').textContent = department || '';
+  document.getElementById('userInitials').textContent = name
+    .split(/\s+/)
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
 }
 
 function updateSlotSummary() {
@@ -161,10 +215,20 @@ function updateBookButton() {
   const sel = document.getElementById('roomId');
   const btn = document.getElementById('bookBtn');
   const room = state.rooms.find((r) => String(r.id) === sel.value);
-  btn.disabled = !sel.value;
-  btn.textContent = room
-    ? `Book ${room.name} · ${fmtMin(timeMin('startHour', 'startMin'))}–${fmtMin(timeMin('endHour', 'endMin'))}`
-    : 'Select a room first';
+  const department = document.getElementById('department').value;
+  const reserver = document.getElementById('reserver').value.trim();
+
+  // Say which field is still missing rather than sitting there greyed out.
+  // Without a login the department and name are all that identify a booking,
+  // so neither can be left to a default.
+  btn.disabled = !room || !department || !reserver;
+  btn.textContent = !room
+    ? 'Select a room first'
+    : !department
+      ? 'Select your department'
+      : !reserver
+        ? 'Enter your name'
+        : `Book ${room.name} · ${fmtMin(timeMin('startHour', 'startMin'))}–${fmtMin(timeMin('endHour', 'endMin'))}`;
 }
 
 // ---- Step 1+2: find available rooms for the chosen time slot ----
@@ -250,10 +314,16 @@ async function submitBooking(ev) {
     showAlert('Please pick an available room first.');
     return;
   }
+  const department = document.getElementById('department').value;
+  const reserver = document.getElementById('reserver').value.trim();
+  if (!department || !reserver) {
+    showAlert('Please fill in your department and name.');
+    return;
+  }
   const payload = {
     room_id: roomId,
-    department: document.getElementById('department').value,
-    reserver: document.getElementById('reserver').value,
+    department,
+    reserver,
     purpose: document.getElementById('purpose').value,
     start_at: `${date}T${timeStr('startHour', 'startMin')}`,
     end_at: `${date}T${timeStr('endHour', 'endMin')}`,
@@ -261,6 +331,10 @@ async function submitBooking(ev) {
   try {
     await api('/api/bookings', { method: 'POST', body: JSON.stringify(payload) });
     showAlert('Reservation created.', 'success');
+    if (state.authMode === 'mock') {
+      remember(reserver, department);
+      updateUserChip(reserver, department);
+    }
     document.getElementById('purpose').value = '';
     document.getElementById('tlDate').value = date;
     state.selectedRoom = null;
@@ -511,7 +585,11 @@ function openDetail(b) {
 
 async function cancelDetail() {
   if (!state.detailBooking) return;
-  if (!confirm('Cancel this booking?')) return;
+  // Anyone can cancel anything at the moment, so spell out whose booking this
+  // is before it goes — the realistic failure here is a misclick, not malice.
+  const b = state.detailBooking;
+  const when = `${fmtStamp(b.start_at)}\u2013${fmtClock(b.end_at.slice(11, 16))}`;
+  if (!confirm(`Cancel this booking?\n\n${b.room_name}  ${when}\n${b.department} / ${b.reserver}`)) return;
   try {
     await api(`/api/bookings/${state.detailBooking.id}`, { method: 'DELETE' });
     detailModal.hide();
@@ -526,7 +604,11 @@ async function init() {
   detailModal = new bootstrap.Modal(document.getElementById('detailModal'));
 
   document.getElementById('bookingForm').addEventListener('submit', submitBooking);
-  document.getElementById('department').addEventListener('input', updateRuleHint);
+  document.getElementById('department').addEventListener('change', () => {
+    updateRuleHint();
+    updateBookButton();
+  });
+  document.getElementById('reserver').addEventListener('input', updateBookButton);
   document.getElementById('endHour').addEventListener('change', () => {
     syncEndMinutes();
     findRooms().then(loadTimeline);
@@ -590,19 +672,21 @@ async function init() {
       `Shown range ${cfg.businessStartHour}:00–${cfg.businessEndHour}:00. ` +
       'Click a booking for details. Click a dashed slot to book that hour, then ' +
       'shift-click a later one to select everything up to it.';
-    if (user.name) {
-      document.getElementById('currentUser').hidden = false;
-      document.getElementById('userName').textContent = user.name;
-      document.getElementById('userDept').textContent = user.department || '';
-      document.getElementById('userInitials').textContent = user.name
-        .split(/\s+/)
-        .map((w) => w[0])
-        .join('')
-        .slice(0, 2)
-        .toUpperCase();
+    // With a real login the server knows who this is and the fields are fixed.
+    // Without one ("mock"), whoever books types it once and the browser keeps it.
+    state.authMode = user.mode;
+    const me =
+      user.mode === 'mock'
+        ? remembered()
+        : { name: user.name, department: user.department };
+
+    fillDepartments(cfg.departments || [], me.department);
+    document.getElementById('reserver').value = me.name || '';
+    updateUserChip(me.name, document.getElementById('department').value);
+    if (user.mode !== 'mock') {
+      document.getElementById('department').disabled = true;
+      document.getElementById('reserver').readOnly = true;
     }
-    document.getElementById('department').value = user.department || '';
-    document.getElementById('reserver').value = user.name || '';
     document.getElementById('date').value = todayStr();
     document.getElementById('tlDate').value = todayStr();
 
