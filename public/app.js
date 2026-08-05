@@ -173,6 +173,17 @@ function remember(name, department) {
   }
 }
 
+// Called whenever either field changes, not only once a booking goes through:
+// someone who fills the form in and then gets called away should not have to
+// type their name again to find out a room was taken.
+function rememberCurrent() {
+  if (state.authMode !== 'mock') return;
+  const name = document.getElementById('reserver').value.trim();
+  const department = document.getElementById('department').value;
+  remember(name, department);
+  updateUserChip(name, department);
+}
+
 function fillDepartments(list, selected) {
   const el = document.getElementById('department');
   el.innerHTML =
@@ -331,10 +342,7 @@ async function submitBooking(ev) {
   try {
     await api('/api/bookings', { method: 'POST', body: JSON.stringify(payload) });
     showAlert('Reservation created.', 'success');
-    if (state.authMode === 'mock') {
-      remember(reserver, department);
-      updateUserChip(reserver, department);
-    }
+    rememberCurrent();
     document.getElementById('purpose').value = '';
     document.getElementById('tlDate').value = date;
     state.selectedRoom = null;
@@ -624,8 +632,10 @@ async function init() {
   document.getElementById('department').addEventListener('change', () => {
     updateRuleHint();
     updateBookButton();
+    rememberCurrent();
   });
   document.getElementById('reserver').addEventListener('input', updateBookButton);
+  document.getElementById('reserver').addEventListener('change', rememberCurrent);
   document.getElementById('endHour').addEventListener('change', () => {
     syncEndMinutes();
     findRooms().then(loadTimeline);
