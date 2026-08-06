@@ -3,7 +3,7 @@
 Web app for booking company meeting rooms. Pick a date and time and only the rooms
 free for that slot show up; the whole company's schedule is visible on a timeline.
 
-Current version: v2.2.0. UI is in English.
+Current version: v2.3.0. UI is in English.
 
 The version shown in the app header comes from `package.json`, so bump it there
 when releasing — it's how you confirm which build is actually deployed.
@@ -20,6 +20,14 @@ when releasing — it's how you confirm which build is actually deployed.
   bar shows as much as it has room for: the full range, or the start time, or —
   for a half-hour booking, which is only 30px wide — the department code, since
   the grid already says when it is but not who has it.
+- Scheduling around people — add the people who should attend and their Outlook
+  free/busy times appear as rows on the same grid as the rooms, with an
+  `Everyone free` strip underneath. Click a stretch of it to take that time.
+  See [Reading Outlook calendars](#reading-outlook-calendars) — until IT grants
+  access this runs on sample data, clearly labelled as such on the page.
+- A booking can carry the people invited and a meeting link, and
+  `Add to Outlook` downloads it as a calendar appointment (`.ics`) so it does not
+  have to be typed in twice.
 - Booking window differs by department: HR (`GA.HR`) can book up to 6 months out
   (180 days), everyone else up to 3 months (90 days).
 - No double-booking — the overlap check and the insert happen in one transaction
@@ -117,6 +125,39 @@ can exist in both factories.
 | `BUSINESS_START_HOUR` / `BUSINESS_END_HOUR` | Bookable hours | 8 / 20 |
 | `BOOKING_WINDOW_DEFAULT_DAYS` / `BOOKING_WINDOW_HR_DAYS` | Booking window, days ahead | 90 / 180 |
 | `HR_DEPARTMENTS` | Departments counted as HR, comma-separated, case-insensitive substring match against `src/departments.js` | GA.HR,HR |
+| `GRAPH_TENANT_ID` / `GRAPH_CLIENT_ID` / `GRAPH_CLIENT_SECRET` | Azure AD app, for reading Outlook free/busy | unset — sample data |
+| `GRAPH_ORGANIZER` | Mailbox the free/busy lookup is made through | unset |
+| `GRAPH_TIMEZONE` | Windows time zone id the times are read in | SE Asia Standard Time |
+
+## Reading Outlook calendars
+
+Showing when someone is free means asking Microsoft Graph, and Graph will not
+answer without an app registered in Azure AD and an administrator's consent.
+That is IT's to grant; there is no way around it, and no partial version of it.
+
+What IT needs to do, once:
+
+1. Register an application in Azure AD.
+2. Grant it the **application** permission `Calendars.Read`, and consent as
+   administrator. This returns free/busy times only — not what the meetings are.
+3. Optionally also `User.Read.All`, which is what lets the search box find people
+   by name. Without it the feature still works; an address has to be typed out.
+4. Hand over the tenant id, client id and client secret, plus any one mailbox for
+   `GRAPH_ORGANIZER` — application calls have no "me", so the lookup is made
+   through a named mailbox.
+
+Until all four values are in `.env`, the app answers with sample times instead of
+leaving the screen empty, and says so both in the API response (`mode: "sample"`)
+and on the page itself. Nothing else changes when the real values arrive: no
+migration, no code change, restart and it is reading real calendars.
+
+Two limits worth knowing before promising anything:
+
+- Someone with no Outlook mailbox has no free/busy to read. They can still be
+  invited and still appear on the booking; their row is simply blank.
+- This reads calendars. It does not send meeting invitations and does not create
+  Teams links — both need more than `Calendars.Read`, and Outlook already does
+  them. `Add to Outlook` covers the common case without needing anything from IT.
 
 ## Authentication
 
@@ -196,6 +237,10 @@ the proxy's address.
 | POST | `/api/bookings` | Create booking |
 | PUT | `/api/bookings/:id` | Update booking |
 | DELETE | `/api/bookings/:id` | Cancel booking. 403 unless `X-Device-Id` matches the one that created it |
+| GET | `/api/bookings/:id/ics` | The booking as a calendar appointment, for `Add to Outlook` |
+| GET | `/api/people/mode` | Whether calendars are live or sample |
+| GET | `/api/people?q=` | Find someone to invite. Answers with no matches, not an error, when directory search is not permitted |
+| POST | `/api/people/freebusy` | `{ date, emails[] }` → when each of them is busy that day, in minutes from midnight |
 | GET | `/api/stats?from=&to=` | Utilization stats for a date range |
 
 ## Deploying
@@ -268,8 +313,11 @@ src/
   middleware/auth.js       mock / checklogin
   routes/
     auth.js, rooms.js (read-only), bookings.js, availability.js, stats.js
+    people.js               directory search + Outlook free/busy
   services/
     bookingRules.js         slot/hours/window/length validation
+    graph.js                Microsoft Graph; sample data until IT grants access
+    calendarFile.js         the .ics behind "Add to Outlook"
 scripts/
   apply-guards.js           runs guards.sql, idempotently
 public/

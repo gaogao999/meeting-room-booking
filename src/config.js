@@ -33,6 +33,23 @@ const config = {
     mode: process.env.AUTH_MODE || 'mock',
   },
 
+  // Reading colleagues' free/busy times out of Outlook, via Microsoft Graph.
+  // All four are handed over by IT once an app is registered in Azure AD and an
+  // administrator has consented. With any of them missing the feature runs on
+  // clearly-labelled sample data instead — see src/services/graph.js.
+  graph: {
+    tenantId: process.env.GRAPH_TENANT_ID || '',
+    clientId: process.env.GRAPH_CLIENT_ID || '',
+    clientSecret: process.env.GRAPH_CLIENT_SECRET || '',
+    // App-only calls have no "me", so the free/busy lookup is made through a
+    // named mailbox. Any mailbox in the tenant will do.
+    organizer: process.env.GRAPH_ORGANIZER || '',
+    // Windows time zone id. Thailand is "SE Asia Standard Time"; this is what
+    // the times sent to and read back from Graph are interpreted in, so it must
+    // match the wall clock the bookings are written in.
+    timeZone: process.env.GRAPH_TIMEZONE || 'SE Asia Standard Time',
+  },
+
   booking: {
     slotMinutes: toInt(process.env.SLOT_MINUTES, 10),
     // Selectable business hours (24h). Bookings and the schedule are limited to this range.

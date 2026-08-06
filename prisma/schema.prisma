@@ -47,6 +47,13 @@ model bookings {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
+  // Who was invited, as a JSON array of {name, email}, and the online meeting
+  // to join. Kept as text rather than a second table: nothing queries or joins
+  // on a participant, the list is read back whole with the booking it belongs
+  // to, and a table would buy indexes and integrity nobody here asks for.
+  participants String? @db.NVarChar(Max)
+  meeting_url  String? @db.NVarChar(500)
+
   // Who cancelled a booking and when. Overwriting status told us a booking was
   // gone but not by whose hand — the first question anyone asks when a meeting
   // disappears from the schedule.

@@ -37,13 +37,30 @@
         <div class="panel sticky-form">
           <div class="panel-head">
             <div class="panel-title">New reservation</div>
-            <div class="panel-sub">Pick a time, then a free room.</div>
+            <div class="panel-sub">Add who is coming, pick a time, then a free room.</div>
           </div>
           <div class="card-body p-3">
             <div id="formAlert"></div>
             <form id="bookingForm">
-              <!-- Step 1: choose date/time -->
-              <div class="step"><span class="num">1</span><span class="ttl">When</span></div>
+              <!-- Step 1: who is coming. Their calendars appear on the schedule
+                   so the time can be chosen around them. -->
+              <div class="step">
+                <span class="num">1</span><span class="ttl">Who</span>
+                <span class="step-opt">optional</span>
+              </div>
+              <div class="panel-sub mb-2">Add people to see when they are free.</div>
+              <input type="email" class="form-control mb-2" id="myEmail" autocomplete="email"
+                     placeholder="Your own email — to see your calendar too" />
+              <div class="people-pick">
+                <input type="text" class="form-control" id="personSearch" autocomplete="off"
+                       placeholder="Search a name, or type an email" />
+                <div class="people-sugg" id="personSuggest" hidden></div>
+              </div>
+              <div class="people-list" id="participantList"></div>
+              <div class="form-text mb-3" id="peopleHint"></div>
+
+              <!-- Step 2: choose date/time -->
+              <div class="step"><span class="num">2</span><span class="ttl">When</span></div>
               <label class="form-label d-block" for="date">Date <span class="text-danger">*</span></label>
               <div class="d-flex gap-2 mb-2">
                 <input type="date" class="form-control" id="date" required />
@@ -69,9 +86,9 @@
               </div>
               <div class="panel-sub mb-3" id="slotSummary"></div>
 
-              <!-- Step 2: choose from the rooms available for that time -->
+              <!-- Step 3: choose from the rooms available for that time -->
               <div class="step">
-                <span class="num">2</span><span class="ttl">Which room</span>
+                <span class="num">3</span><span class="ttl">Which room</span>
                 <span class="badge-free" id="freeCount"></span>
               </div>
               <div class="panel-sub mb-2">Only rooms free for this time are listed.</div>
@@ -80,8 +97,8 @@
               </select>
               <div class="form-text mb-3" id="availHint"></div>
 
-              <!-- Step 3: details -->
-              <div class="step"><span class="num">3</span><span class="ttl">Details</span></div>
+              <!-- Step 4: details -->
+              <div class="step"><span class="num">4</span><span class="ttl">Details</span></div>
               <div class="row">
                 <div class="col-6 mb-2">
                   <label class="form-label d-block" for="department">Department <span class="text-danger">*</span></label>
@@ -93,7 +110,9 @@
                 </div>
               </div>
               <label class="form-label d-block" for="purpose">Purpose <span class="fw-normal text-secondary">(optional)</span></label>
-              <input type="text" class="form-control mb-3" id="purpose" placeholder="e.g. Line 3 review" />
+              <input type="text" class="form-control mb-2" id="purpose" placeholder="e.g. Line 3 review" />
+              <label class="form-label d-block" for="meetingUrl">Meeting link <span class="fw-normal text-secondary">(optional)</span></label>
+              <input type="url" class="form-control mb-3" id="meetingUrl" placeholder="Paste the Teams link" />
               <button type="submit" class="btn-book" id="bookBtn" disabled>Select a room first</button>
             </form>
             <div class="rule-hint" id="ruleHintWrap">
@@ -129,6 +148,7 @@
             <div class="d-flex align-items-center gap-2 flex-wrap" id="locFilters"></div>
           </div>
 
+          <div class="fb-note" id="fbNote" hidden></div>
           <div id="timeline" class="timeline"></div>
           <p class="panel-foot panel-sub mb-0" id="tlRangeNote"></p>
         </div>

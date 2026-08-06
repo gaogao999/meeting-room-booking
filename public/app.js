@@ -29,6 +29,12 @@ const state = {
   locFilter: 'All',
   selectedRoom: null,
   detailBooking: null,
+  // Who the meeting is for, and when their Outlook calendars say they are busy.
+  // freeBusy is keyed by email and only ever holds the day currently shown.
+  participants: [],
+  freeBusy: {},
+  fbMode: 'sample',
+  fbError: null,
 };
 
 let detailModal = null;
@@ -78,11 +84,14 @@ function timeMin(hourId, minId) {
   return +document.getElementById(hourId).value * 60 + +document.getElementById(minId).value;
 }
 
-function showAlert(message, type = 'danger') {
+// Messages are escaped by default — most of them carry text from the server.
+// `html: true` is for the handful this file writes itself, which need a link in
+// them; never pass it anything that came back over the network.
+function showAlert(message, type = 'danger', { html = false } = {}) {
   document.getElementById('formAlert').innerHTML =
-    `<div class="alert alert-${type} alert-dismissible fade show" role="alert">${escapeHtml(
-      message
-    )}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`;
+    `<div class="alert alert-${type} alert-dismissible fade show" role="alert">${
+      html ? message : escapeHtml(message)
+    }<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`;
 }
 
 function visibleRooms() {
@@ -165,9 +174,9 @@ function remembered() {
   }
 }
 
-function remember(name, department) {
+function remember(name, department, email) {
   try {
-    localStorage.setItem(ME_KEY, JSON.stringify({ name, department }));
+    localStorage.setItem(ME_KEY, JSON.stringify({ name, department, email }));
   } catch (err) {
     /* not fatal — the fields just start empty next time */
   }
@@ -180,8 +189,27 @@ function rememberCurrent() {
   if (state.authMode !== 'mock') return;
   const name = document.getElementById('reserver').value.trim();
   const department = document.getElementById('department').value;
-  remember(name, department);
+  remember(name, department, myEmail());
   updateUserChip(name, department);
+}
+
+// Your own address, if you have given one. Without a login the app has no way
+// to know which mailbox is yours, and free/busy is looked up by address — so
+// this is what puts your own calendar on the grid next to everyone else's.
+function myEmail() {
+  const value = document.getElementById('myEmail').value.trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? value : '';
+}
+
+// Everyone whose calendar belongs on the schedule: you first, then the people
+// you invited. You are not one of the participants stored on the booking —
+// being in the room is already implied by having booked it.
+function attendees() {
+  const mine = myEmail();
+  const own = mine
+    ? [{ name: document.getElementById('reserver').value.trim() || 'You', email: mine, self: true }]
+    : [];
+  return [...own, ...state.participants];
 }
 
 function fillDepartments(list, selected) {
@@ -208,6 +236,181 @@ function updateUserChip(name, department) {
     .join('')
     .slice(0, 2)
     .toUpperCase();
+}
+
+// ---- Participants -------------------------------------------------------
+//
+// The list is kept in the browser between visits: the same handful of people
+// tend to be in the same meetings, and re-typing them every time is the kind of
+// friction that stops a screen being used.
+const PEOPLE_KEY = 'mrb.people';
+
+function loadParticipants() {
+  try {
+    const list = JSON.parse(localStorage.getItem(PEOPLE_KEY) || '[]');
+    return Array.isArray(list) ? list.slice(0, 20) : [];
+  } catch (err) {
+    return [];
+  }
+}
+
+function saveParticipants() {
+  try {
+    localStorage.setItem(PEOPLE_KEY, JSON.stringify(state.participants));
+  } catch (err) {
+    /* not fatal — the list just starts empty next time */
+  }
+}
+
+function renderParticipants() {
+  const el = document.getElementById('participantList');
+  el.innerHTML = state.participants
+    .map(
+      (p, i) =>
+        `<span class="person-chip" style="--pc:${colorForDept(p.email)}">` +
+        `<span class="pc-name" title="${escapeHtml(p.email)}">${escapeHtml(p.name)}</span>` +
+        `<button type="button" class="pc-x" data-remove="${i}" aria-label="Remove ${escapeHtml(
+          p.name
+        )}">&times;</button></span>`
+    )
+    .join('');
+
+  const hint = document.getElementById('peopleHint');
+  if (!state.participants.length) {
+    hint.textContent = '';
+    return;
+  }
+  hint.textContent =
+    state.fbMode === 'live'
+      ? 'Busy times come from Outlook.'
+      : 'Showing sample times — Outlook is not connected yet.';
+}
+
+function addParticipant(person) {
+  const email = String(person.email || '').trim();
+  if (!email) return;
+  if (state.participants.some((p) => p.email.toLowerCase() === email.toLowerCase())) return;
+  if (state.participants.length >= 20) {
+    showAlert('You can add up to 20 people.');
+    return;
+  }
+  state.participants.push({ name: String(person.name || email).trim() || email, email });
+  saveParticipants();
+  renderParticipants();
+  refreshFreeBusy();
+}
+
+function removeParticipant(index) {
+  state.participants.splice(index, 1);
+  saveParticipants();
+  renderParticipants();
+  refreshFreeBusy();
+}
+
+function hideSuggestions() {
+  const box = document.getElementById('personSuggest');
+  box.hidden = true;
+  box.innerHTML = '';
+}
+
+let suggestTimer = null;
+
+function onPersonSearch() {
+  const q = document.getElementById('personSearch').value.trim();
+  clearTimeout(suggestTimer);
+  if (q.length < 2) {
+    hideSuggestions();
+    return;
+  }
+  // One request per pause in typing, not one per keystroke.
+  suggestTimer = setTimeout(async () => {
+    try {
+      const data = await api(`/api/people?q=${encodeURIComponent(q)}`);
+      const box = document.getElementById('personSuggest');
+      const looksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(q);
+      const rows = data.people.map(
+        (p) =>
+          `<button type="button" class="sugg" data-name="${escapeHtml(p.name)}" data-email="${escapeHtml(
+            p.email
+          )}"><span class="s-name">${escapeHtml(p.name)}</span>` +
+          `<span class="s-mail">${escapeHtml(p.email)}</span></button>`
+      );
+      // A name that is not in the directory is still a person who can be
+      // invited, as long as what was typed is an address.
+      if (looksLikeEmail && !data.people.some((p) => p.email.toLowerCase() === q.toLowerCase())) {
+        rows.push(
+          `<button type="button" class="sugg" data-name="${escapeHtml(q)}" data-email="${escapeHtml(
+            q
+          )}"><span class="s-name">Add ${escapeHtml(q)}</span></button>`
+        );
+      }
+      if (!rows.length) {
+        box.innerHTML = '<div class="sugg-empty">No one found. Type a full email address.</div>';
+      } else {
+        box.innerHTML = rows.join('');
+      }
+      box.hidden = false;
+    } catch (err) {
+      hideSuggestions();
+    }
+  }, 200);
+}
+
+// Fetch busy times for everyone on the list, for the day the schedule is on.
+async function refreshFreeBusy() {
+  const note = document.getElementById('fbNote');
+  const people = attendees();
+  if (!people.length) {
+    state.freeBusy = {};
+    state.fbError = null;
+    note.hidden = true;
+    renderParticipants();
+    loadTimeline();
+    return;
+  }
+  // Read the picker rather than state.date: this runs before loadTimeline has
+  // caught up with a day the user just moved to.
+  const date = document.getElementById('tlDate').value || todayStr();
+  try {
+    const data = await api('/api/people/freebusy', {
+      method: 'POST',
+      body: JSON.stringify({ date, emails: people.map((p) => p.email) }),
+    });
+    state.fbMode = data.mode;
+    state.fbError = null;
+    state.freeBusy = {};
+    for (const p of data.people) state.freeBusy[p.email.toLowerCase()] = p;
+    note.hidden = data.mode === 'live';
+    note.textContent =
+      'Outlook is not connected yet, so the times shown for people are sample data.';
+  } catch (err) {
+    state.fbError = err.message;
+    state.freeBusy = {};
+    note.hidden = false;
+    note.textContent = `Could not read calendars: ${err.message}`;
+  }
+  renderParticipants();
+  loadTimeline();
+}
+
+// The stretches where nobody on the list is busy. Used for the strip that
+// answers the actual question: when can we all meet?
+function commonFreeBlocks() {
+  const busy = [];
+  for (const p of attendees()) {
+    const entry = state.freeBusy[p.email.toLowerCase()];
+    for (const b of (entry && entry.busy) || []) busy.push(b);
+  }
+  busy.sort((a, b) => a.start - b.start);
+  const free = [];
+  let cursor = DAY_START;
+  for (const b of busy) {
+    if (b.start > cursor) free.push({ start: cursor, end: Math.min(b.start, DAY_END) });
+    cursor = Math.max(cursor, b.end);
+    if (cursor >= DAY_END) break;
+  }
+  if (cursor < DAY_END) free.push({ start: cursor, end: DAY_END });
+  return free.filter((f) => f.end - f.start >= state.config.slotMinutes);
 }
 
 function updateSlotSummary() {
@@ -336,14 +539,24 @@ async function submitBooking(ev) {
     department,
     reserver,
     purpose: document.getElementById('purpose').value,
+    meeting_url: document.getElementById('meetingUrl').value,
+    participants: state.participants,
     start_at: `${date}T${timeStr('startHour', 'startMin')}`,
     end_at: `${date}T${timeStr('endHour', 'endMin')}`,
   };
   try {
-    await api('/api/bookings', { method: 'POST', body: JSON.stringify(payload) });
-    showAlert('Reservation created.', 'success');
+    const created = await api('/api/bookings', { method: 'POST', body: JSON.stringify(payload) });
+    // The booking is made; the next thing anyone wants is it in their own
+    // calendar, so offer that here rather than making them find the booking
+    // again to get at it.
+    showAlert(
+      `Reservation created. <a class="alert-link" href="/api/bookings/${created.id}/ics">Add to Outlook</a>`,
+      'success',
+      { html: true }
+    );
     rememberCurrent();
     document.getElementById('purpose').value = '';
+    document.getElementById('meetingUrl').value = '';
     document.getElementById('tlDate').value = date;
     state.selectedRoom = null;
     loadTimeline();
@@ -415,6 +628,70 @@ function renderFreeCells(room, busy) {
   return cells.join('');
 }
 
+// The invited people, on the same time axis as the rooms — the whole point of
+// the screen is that one glance covers both. A last row collapses everybody
+// into the times when nobody is busy, and clicking it picks that time.
+const BUSY_LABEL = { busy: 'Busy', tentative: 'Tentative', out: 'Out of office', elsewhere: 'Working elsewhere' };
+
+function renderPeopleRows() {
+  const people = attendees();
+  if (!people.length) return '';
+
+  let html =
+    '<div class="tl-grouprow is-people"><div class="g-name">People</div>' +
+    `<div class="g-sum">${state.participants.length} invited${
+      state.fbMode === 'sample' ? ' · sample times' : ''
+    }</div></div>`;
+
+  for (const p of people) {
+    const entry = state.freeBusy[p.email.toLowerCase()];
+    const bars = ((entry && entry.busy) || [])
+      .filter((b) => b.end > DAY_START && b.start < DAY_END)
+      .map((b) => {
+        const s = Math.max(DAY_START, b.start);
+        const e = Math.min(DAY_END, b.end);
+        const label = BUSY_LABEL[b.status] || 'Busy';
+        return (
+          `<div class="tl-busy is-${escapeHtml(b.status)}" style="left:${((s - DAY_START) / SPAN) * 100}%;` +
+          `width:${((e - s) / SPAN) * 100}%" title="${escapeHtml(
+            `${p.name} · ${label} ${fmtMin(s)}–${fmtMin(e)}`
+          )}"></div>`
+        );
+      })
+      .join('');
+    const failed = entry && entry.error;
+    html +=
+      `<div class="tl-row is-person${p.self ? ' is-you' : ''}"><div class="tl-roomcell">` +
+      `<span class="tl-dot" style="background:${colorForDept(p.email)}"></span>` +
+      `<span class="tl-roomname" title="${escapeHtml(p.email)}">${escapeHtml(
+        p.self ? `${p.name} (you)` : p.name
+      )}</span></div>` +
+      `<div class="tl-track">${hourLines()}${
+        failed ? '<div class="tl-nocal">Calendar not available</div>' : bars
+      }</div></div>`;
+  }
+
+  const free = commonFreeBlocks();
+  const slots = free
+    .map(
+      (f) =>
+        `<button type="button" class="tl-allfree" data-free-start="${f.start}" data-free-end="${f.end}"` +
+        ` style="left:${((f.start - DAY_START) / SPAN) * 100}%;width:calc(${
+          ((f.end - f.start) / SPAN) * 100
+        }% - 2px)" title="Everyone free ${fmtMin(f.start)}–${fmtMin(
+          f.end
+        )} · click to use this time">${innerPx(f.end - f.start) >= 44 ? fmtMin(f.start) : ''}</button>`
+    )
+    .join('');
+  html +=
+    '<div class="tl-row is-allfree"><div class="tl-roomcell">' +
+    '<span class="tl-roomname">Everyone free</span></div>' +
+    `<div class="tl-track">${hourLines()}${
+      slots || '<div class="tl-nocal">No time when everyone is free</div>'
+    }</div></div>`;
+  return html;
+}
+
 function renderTimeline(bookingsByRoom) {
   const el = document.getElementById('timeline');
   const rooms = visibleRooms();
@@ -443,6 +720,8 @@ function renderTimeline(bookingsByRoom) {
   html += `<div class="tl-row tl-head"><div class="tl-roomcell">Room</div><div class="tl-track">${headHours.join(
     ''
   )}</div></div>`;
+
+  html += renderPeopleRows();
 
   for (const loc of sortedLocations(rooms)) {
     const locRooms = rooms.filter((r) => (r.location || 'Other') === loc);
@@ -544,7 +823,29 @@ function shiftDay(delta) {
   d.setDate(d.getDate() + delta);
   document.getElementById('tlDate').value =
     `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  loadTimeline();
+  // Calendars are fetched a day at a time, so moving day has to fetch again.
+  // With nobody invited this falls straight through to loadTimeline().
+  refreshFreeBusy();
+}
+
+// Take a stretch when everyone is free and put it in the form. The whole block
+// is rarely the meeting — keep the length already chosen and start it here,
+// rather than proposing a four-hour booking because that much happens to be
+// free.
+function useTimeRange(blockStart, blockEnd) {
+  const slot = state.config.slotMinutes;
+  const current = timeMin('endHour', 'endMin') - timeMin('startHour', 'startMin');
+  const length = Math.max(slot, Math.min(current > 0 ? current : 60, blockEnd - blockStart));
+  const s = Math.max(DAY_START, Math.floor(blockStart / slot) * slot);
+  const e = Math.min(blockEnd, DAY_END, s + length);
+
+  document.getElementById('date').value = state.date;
+  document.getElementById('startHour').value = Math.floor(s / 60);
+  document.getElementById('startMin').value = s % 60;
+  document.getElementById('endHour').value = Math.floor(e / 60);
+  syncEndMinutes();
+  document.getElementById('endMin').value = e % 60;
+  findRooms().then(loadTimeline);
 }
 
 // How far the room stays free without a break, starting at `from`. Used to keep a
@@ -602,15 +903,28 @@ function openDetail(b) {
   const cancelBtn = document.getElementById('detailCancel');
   cancelBtn.hidden = !b.mine;
   cancelBtn.textContent = 'Cancel my booking';
+  const people = (b.participants || []).length
+    ? `<dt class="col-4">Participants</dt><dd class="col-8">${b.participants
+        .map((p) => `<div title="${escapeHtml(p.email)}">${escapeHtml(p.name)}</div>`)
+        .join('')}</dd>`
+    : '';
+  // Only ever an http(s) address — the server refuses to store anything else,
+  // which is what makes it safe to put in an href here.
+  const link = b.meeting_url
+    ? `<dt class="col-4">Meeting link</dt><dd class="col-8">` +
+      `<a href="${escapeHtml(b.meeting_url)}" target="_blank" rel="noopener noreferrer">Join</a></dd>`
+    : '';
   document.getElementById('detailBody').innerHTML = banner + `
-    <dl class="row mb-0">
+    <dl class="row mb-3">
       <dt class="col-4">Room</dt><dd class="col-8">${escapeHtml(b.room_name)}</dd>
       <dt class="col-4">Start</dt><dd class="col-8">${escapeHtml(fmtStamp(b.start_at))}</dd>
       <dt class="col-4">End</dt><dd class="col-8">${escapeHtml(fmtStamp(b.end_at))}</dd>
       <dt class="col-4">Department</dt><dd class="col-8">${escapeHtml(b.department)}</dd>
       <dt class="col-4">Name</dt><dd class="col-8">${escapeHtml(b.reserver)}</dd>
       <dt class="col-4">Purpose</dt><dd class="col-8">${escapeHtml(b.purpose || '-')}</dd>
-    </dl>`;
+      ${people}${link}
+    </dl>
+    <a class="btn btn-outline-primary btn-sm" href="/api/bookings/${b.id}/ics">Add to Outlook</a>`;
   detailModal.show();
 }
 
@@ -660,9 +974,35 @@ async function init() {
   document.getElementById('nextDay').addEventListener('click', () => shiftDay(1));
   document.getElementById('today').addEventListener('click', () => {
     document.getElementById('tlDate').value = todayStr();
-    loadTimeline();
+    refreshFreeBusy();
   });
-  document.getElementById('tlDate').addEventListener('change', loadTimeline);
+  document.getElementById('tlDate').addEventListener('change', refreshFreeBusy);
+
+  // Participants
+  document.getElementById('myEmail').addEventListener('change', () => {
+    rememberCurrent();
+    refreshFreeBusy();
+  });
+  document.getElementById('personSearch').addEventListener('input', onPersonSearch);
+  document.getElementById('personSearch').addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') hideSuggestions();
+  });
+  document.getElementById('personSuggest').addEventListener('click', (e) => {
+    const btn = e.target.closest('.sugg');
+    if (!btn) return;
+    addParticipant({ name: btn.getAttribute('data-name'), email: btn.getAttribute('data-email') });
+    document.getElementById('personSearch').value = '';
+    hideSuggestions();
+  });
+  document.getElementById('participantList').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-remove]');
+    if (btn) removeParticipant(+btn.getAttribute('data-remove'));
+  });
+  // Clicking away closes the suggestion list; without this it sits over the
+  // form until something else is typed.
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.people-pick')) hideSuggestions();
+  });
   document.getElementById('detailCancel').addEventListener('click', cancelDetail);
 
   document.getElementById('locFilters').addEventListener('click', (e) => {
@@ -678,6 +1018,11 @@ async function init() {
     const bar = e.target.closest('.tl-booking');
     if (bar) {
       openDetail(JSON.parse(bar.getAttribute('data-booking')));
+      return;
+    }
+    const allFree = e.target.closest('.tl-allfree');
+    if (allFree) {
+      useTimeRange(+allFree.getAttribute('data-free-start'), +allFree.getAttribute('data-free-end'));
       return;
     }
     const cell = e.target.closest('.tl-free');
@@ -713,6 +1058,7 @@ async function init() {
 
     fillDepartments(cfg.departments || [], me.department);
     document.getElementById('reserver').value = me.name || '';
+    document.getElementById('myEmail').value = me.email || '';
     updateUserChip(me.name, document.getElementById('department').value);
     if (user.mode !== 'mock') {
       document.getElementById('department').disabled = true;
@@ -723,8 +1069,13 @@ async function init() {
 
     fillTimeControls();
     updateRuleHint();
+    state.participants = loadParticipants();
+    renderParticipants();
     await loadTimeline();
     findRooms();
+    // Calendars are fetched after the schedule is on screen: the room grid is
+    // the part that must not wait on Microsoft answering.
+    if (attendees().length) refreshFreeBusy();
   } catch (err) {
     showAlert(`Initialization failed: ${err.message}`);
   }

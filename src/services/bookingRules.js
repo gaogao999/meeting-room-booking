@@ -77,6 +77,61 @@ function checkLengths({ department, reserver, purpose }) {
   return { ok: true };
 }
 
+// The invited people, as they arrive from the browser: an array of
+// {name, email}. Returns the list to store, or an error to show.
+//
+// The cap matches what the free/busy lookup will accept, and both exist for the
+// same reason — a meeting nobody can read the attendee list of is not a meeting
+// this app needs to support.
+const MAX_PARTICIPANTS = 20;
+
+function normalizeParticipants(input) {
+  if (input === undefined || input === null || input === '') return { ok: true, value: [] };
+  if (!Array.isArray(input)) return { ok: false, error: 'Participants must be a list.' };
+  if (input.length > MAX_PARTICIPANTS) {
+    return { ok: false, error: `You can invite up to ${MAX_PARTICIPANTS} people.` };
+  }
+
+  const seen = new Set();
+  const out = [];
+  for (const raw of input) {
+    const entry = raw && typeof raw === 'object' ? raw : { email: raw };
+    const email = String(entry.email || '').trim();
+    const name = String(entry.name || '').trim() || email;
+    if (!email) continue;
+    // Deliberately loose: enough to catch a typed mistake, not an attempt to
+    // decide which addresses Microsoft considers real.
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 120) {
+      return { ok: false, error: `"${email}" does not look like an email address.` };
+    }
+    if (name.length > 80) return { ok: false, error: 'A participant name is too long.' };
+    const key = email.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ name, email });
+  }
+  return { ok: true, value: out };
+}
+
+// The join link for the online meeting. Only http(s): a javascript: or data:
+// URL here would end up as the href of a link the whole company clicks.
+function checkMeetingUrl(url) {
+  if (!url) return { ok: true, value: null };
+  const value = String(url).trim();
+  if (!value) return { ok: true, value: null };
+  if (value.length > 500) return { ok: false, error: 'Meeting link is too long.' };
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch (err) {
+    return { ok: false, error: 'Meeting link must be a full address starting with https://' };
+  }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+    return { ok: false, error: 'Meeting link must start with https://' };
+  }
+  return { ok: true, value };
+}
+
 function validateBooking({ startAt, endAt, department }, now = new Date()) {
   const start = parseLocal(startAt);
   const end = parseLocal(endAt);
@@ -153,4 +208,6 @@ module.exports = {
   formatLocal,
   validateBooking,
   checkLengths,
+  normalizeParticipants,
+  checkMeetingUrl,
 };
