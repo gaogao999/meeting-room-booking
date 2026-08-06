@@ -3,7 +3,13 @@
 const express = require('express');
 const { prisma } = require('../db');
 const config = require('../config');
-const { validateBooking, checkLengths } = require('../services/bookingRules');
+const {
+  validateBooking,
+  checkLengths,
+  normalizeParticipants,
+  checkMeetingUrl,
+} = require('../services/bookingRules');
+const { buildIcs } = require('../services/calendarFile');
 
 const router = express.Router();
 
@@ -19,12 +25,26 @@ function deviceOf(req) {
 // something. The joined room is flattened to room_name so the JSON keeps the
 // shape the frontend already reads.
 function present(row, device) {
-  const { device_id, created_ip, cancelled_device, room, ...rest } = row;
+  const { device_id, created_ip, cancelled_device, room, participants, ...rest } = row;
   return {
     ...rest,
+    // Stored as a JSON string. A row hand-edited in the database into something
+    // that will not parse should not take the whole schedule down with it, so a
+    // broken list reads as no list.
+    participants: parseParticipants(participants),
     room_name: room ? room.name : rest.room_name,
     mine: Boolean(device && device_id === device),
   };
+}
+
+function parseParticipants(text) {
+  if (!text) return [];
+  try {
+    const list = JSON.parse(text);
+    return Array.isArray(list) ? list : [];
+  } catch (err) {
+    return [];
+  }
 }
 
 // Find a confirmed booking that overlaps [startAt, endAt) for the room.
@@ -85,6 +105,8 @@ function insertIfFree(data) {
         created_by: data.createdBy,
         device_id: data.deviceId,
         created_ip: data.createdIp,
+        participants: data.participants,
+        meeting_url: data.meetingUrl,
       },
     });
     return { id: created.id };
@@ -105,6 +127,8 @@ function updateIfFree(data) {
         purpose: data.purpose,
         start_at: data.startAt,
         end_at: data.endAt,
+        participants: data.participants,
+        meeting_url: data.meetingUrl,
       },
     });
     return { id: data.id };
@@ -172,6 +196,26 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
+// The booking as a calendar appointment, so it can be added to Outlook without
+// typing it in a second time. Downloaded by the browser, not emailed: sending
+// mail needs the company mail server, and this needs nothing.
+router.get('/:id/ics', async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const row = Number.isFinite(id)
+      ? await prisma.bookings.findUnique({ where: { id }, ...withRoom })
+      : null;
+    if (!row) return res.status(404).json({ error: 'Booking not found.' });
+
+    const booking = present(row, null);
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="meeting-${id}.ics"`);
+    res.send(buildIcs(booking, { host: req.hostname }));
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Create a booking
 router.post('/', async (req, res, next) => {
   try {
@@ -193,6 +237,11 @@ router.post('/', async (req, res, next) => {
     }
     const lengths = checkLengths({ department, reserver, purpose });
     if (!lengths.ok) return res.status(400).json({ error: lengths.error });
+
+    const people = normalizeParticipants(body.participants);
+    if (!people.ok) return res.status(400).json({ error: people.error });
+    const link = checkMeetingUrl(body.meeting_url);
+    if (!link.ok) return res.status(400).json({ error: link.error });
 
     const room = await prisma.rooms.findFirst({ where: { id: roomId, is_active: true } });
     if (!room) {
@@ -219,6 +268,8 @@ router.post('/', async (req, res, next) => {
       createdBy: req.user?.name || null,
       deviceId: deviceOf(req),
       createdIp: req.ip || null,
+      participants: people.value.length ? JSON.stringify(people.value) : null,
+      meetingUrl: link.value,
     });
     if (result.overlap) {
       return res.status(409).json({
@@ -257,6 +308,15 @@ router.put('/:id', async (req, res, next) => {
     const lengths = checkLengths({ department, reserver, purpose });
     if (!lengths.ok) return res.status(400).json({ error: lengths.error });
 
+    const people = normalizeParticipants(
+      body.participants !== undefined ? body.participants : parseParticipants(existing.participants)
+    );
+    if (!people.ok) return res.status(400).json({ error: people.error });
+    const link = checkMeetingUrl(
+      body.meeting_url !== undefined ? body.meeting_url : existing.meeting_url
+    );
+    if (!link.ok) return res.status(400).json({ error: link.error });
+
     const room = await prisma.rooms.findFirst({ where: { id: roomId, is_active: true } });
     if (!room) {
       return res.status(404).json({ error: 'Room not found or unavailable.' });
@@ -274,6 +334,8 @@ router.put('/:id', async (req, res, next) => {
       purpose,
       startAt: norm.startAt,
       endAt: norm.endAt,
+      participants: people.value.length ? JSON.stringify(people.value) : null,
+      meetingUrl: link.value,
     });
     if (result.overlap) {
       return res.status(409).json({
