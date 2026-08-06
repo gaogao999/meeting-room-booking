@@ -174,9 +174,9 @@ function remembered() {
   }
 }
 
-function remember(name, department) {
+function remember(name, department, email) {
   try {
-    localStorage.setItem(ME_KEY, JSON.stringify({ name, department }));
+    localStorage.setItem(ME_KEY, JSON.stringify({ name, department, email }));
   } catch (err) {
     /* not fatal — the fields just start empty next time */
   }
@@ -189,8 +189,27 @@ function rememberCurrent() {
   if (state.authMode !== 'mock') return;
   const name = document.getElementById('reserver').value.trim();
   const department = document.getElementById('department').value;
-  remember(name, department);
+  remember(name, department, myEmail());
   updateUserChip(name, department);
+}
+
+// Your own address, if you have given one. Without a login the app has no way
+// to know which mailbox is yours, and free/busy is looked up by address — so
+// this is what puts your own calendar on the grid next to everyone else's.
+function myEmail() {
+  const value = document.getElementById('myEmail').value.trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? value : '';
+}
+
+// Everyone whose calendar belongs on the schedule: you first, then the people
+// you invited. You are not one of the participants stored on the booking —
+// being in the room is already implied by having booked it.
+function attendees() {
+  const mine = myEmail();
+  const own = mine
+    ? [{ name: document.getElementById('reserver').value.trim() || 'You', email: mine, self: true }]
+    : [];
+  return [...own, ...state.participants];
 }
 
 function fillDepartments(list, selected) {
@@ -340,7 +359,8 @@ function onPersonSearch() {
 // Fetch busy times for everyone on the list, for the day the schedule is on.
 async function refreshFreeBusy() {
   const note = document.getElementById('fbNote');
-  if (!state.participants.length) {
+  const people = attendees();
+  if (!people.length) {
     state.freeBusy = {};
     state.fbError = null;
     note.hidden = true;
@@ -354,7 +374,7 @@ async function refreshFreeBusy() {
   try {
     const data = await api('/api/people/freebusy', {
       method: 'POST',
-      body: JSON.stringify({ date, emails: state.participants.map((p) => p.email) }),
+      body: JSON.stringify({ date, emails: people.map((p) => p.email) }),
     });
     state.fbMode = data.mode;
     state.fbError = null;
@@ -377,7 +397,7 @@ async function refreshFreeBusy() {
 // answers the actual question: when can we all meet?
 function commonFreeBlocks() {
   const busy = [];
-  for (const p of state.participants) {
+  for (const p of attendees()) {
     const entry = state.freeBusy[p.email.toLowerCase()];
     for (const b of (entry && entry.busy) || []) busy.push(b);
   }
@@ -614,7 +634,8 @@ function renderFreeCells(room, busy) {
 const BUSY_LABEL = { busy: 'Busy', tentative: 'Tentative', out: 'Out of office', elsewhere: 'Working elsewhere' };
 
 function renderPeopleRows() {
-  if (!state.participants.length) return '';
+  const people = attendees();
+  if (!people.length) return '';
 
   let html =
     '<div class="tl-grouprow is-people"><div class="g-name">People</div>' +
@@ -622,7 +643,7 @@ function renderPeopleRows() {
       state.fbMode === 'sample' ? ' · sample times' : ''
     }</div></div>`;
 
-  for (const p of state.participants) {
+  for (const p of people) {
     const entry = state.freeBusy[p.email.toLowerCase()];
     const bars = ((entry && entry.busy) || [])
       .filter((b) => b.end > DAY_START && b.start < DAY_END)
@@ -640,9 +661,11 @@ function renderPeopleRows() {
       .join('');
     const failed = entry && entry.error;
     html +=
-      '<div class="tl-row is-person"><div class="tl-roomcell">' +
+      `<div class="tl-row is-person${p.self ? ' is-you' : ''}"><div class="tl-roomcell">` +
       `<span class="tl-dot" style="background:${colorForDept(p.email)}"></span>` +
-      `<span class="tl-roomname" title="${escapeHtml(p.email)}">${escapeHtml(p.name)}</span></div>` +
+      `<span class="tl-roomname" title="${escapeHtml(p.email)}">${escapeHtml(
+        p.self ? `${p.name} (you)` : p.name
+      )}</span></div>` +
       `<div class="tl-track">${hourLines()}${
         failed ? '<div class="tl-nocal">Calendar not available</div>' : bars
       }</div></div>`;
@@ -956,6 +979,10 @@ async function init() {
   document.getElementById('tlDate').addEventListener('change', refreshFreeBusy);
 
   // Participants
+  document.getElementById('myEmail').addEventListener('change', () => {
+    rememberCurrent();
+    refreshFreeBusy();
+  });
   document.getElementById('personSearch').addEventListener('input', onPersonSearch);
   document.getElementById('personSearch').addEventListener('keydown', (e) => {
     if (e.key === 'Escape') hideSuggestions();
@@ -1031,6 +1058,7 @@ async function init() {
 
     fillDepartments(cfg.departments || [], me.department);
     document.getElementById('reserver').value = me.name || '';
+    document.getElementById('myEmail').value = me.email || '';
     updateUserChip(me.name, document.getElementById('department').value);
     if (user.mode !== 'mock') {
       document.getElementById('department').disabled = true;
@@ -1047,7 +1075,7 @@ async function init() {
     findRooms();
     // Calendars are fetched after the schedule is on screen: the room grid is
     // the part that must not wait on Microsoft answering.
-    if (state.participants.length) refreshFreeBusy();
+    if (attendees().length) refreshFreeBusy();
   } catch (err) {
     showAlert(`Initialization failed: ${err.message}`);
   }

@@ -681,3 +681,10 @@
   border-color: #4c9a63;
   outline: none;
 }
+/* Your own row, so you can find yourself without reading every name. */
+.tl-row.is-person.is-you .tl-roomcell {
+  background: #f2f6fc;
+}
+.tl-row.is-person.is-you .tl-roomname {
+  font-weight: 700;
+}
