@@ -3,7 +3,7 @@
 Web app for booking company meeting rooms. Pick a date and time and only the rooms
 free for that slot show up; the whole company's schedule is visible on a timeline.
 
-Current version: v2.3.0. UI is in English.
+Current version: v2.3.1. UI is in English.
 
 The version shown in the app header comes from `package.json`, so bump it there
 when releasing — it's how you confirm which build is actually deployed.
@@ -145,6 +145,12 @@ What IT needs to do, once:
 4. Hand over the tenant id, client id and client secret, plus any one mailbox for
    `GRAPH_ORGANIZER` — application calls have no "me", so the lookup is made
    through a named mailbox.
+
+`npm run check:graph` verifies all of it — sign-in, whether a calendar can
+actually be read, whether the server's clock is in the right time zone — and says
+in plain Japanese what to fix. [docs/weekend-test.md](docs/weekend-test.md) walks
+through doing the whole thing on a personal Microsoft 365 tenant first, which
+needs nothing from IT and rehearses exactly what they will later be asked for.
 
 Until all four values are in `.env`, the app answers with sample times instead of
 leaving the screen empty, and says so both in the API response (`mode: "sample"`)
@@ -320,6 +326,7 @@ src/
     calendarFile.js         the .ics behind "Add to Outlook"
 scripts/
   apply-guards.js           runs guards.sql, idempotently
+  check-graph.js            diagnoses the Outlook connection
 public/
   common.js                 helpers shared by all three pages
   index.html / app.js       booking + schedule + availability
