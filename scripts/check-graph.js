@@ -1,13 +1,14 @@
 'use strict';
 
-// カレンダー連携の設定チェック（npm run check:graph）
+// Diagnose the Outlook connection (npm run check:graph).
 //
-// Azure AD の設定は、間違っていても画面上は「予定がない人」と区別がつかない。
-// つながっているのか、つながっていないのか、どこで止まっているのかを、
-// 推測せずに済むようにするための診断。
+// Azure AD is configured by hand across half a dozen screens, and a mistake in
+// any of them looks exactly like a colleague with an empty diary. This asks the
+// questions that tell those apart, so nobody has to guess which it is.
 //
-// 出力は日本語。使う人は Graph のエラーコードを読む人ではないので、
-// Microsoft が返した文面をそのまま出すのではなく、何をすればいいかを書く。
+// The output is Japanese, and deliberately not a copy of what Microsoft said:
+// whoever runs this is not a person who reads AADSTS codes. It says what to
+// change.
 
 require('dotenv').config();
 
@@ -30,8 +31,8 @@ function fail(text, detail) {
   line(NG, text, detail);
 }
 
-// Microsoft のエラーは英語で、原因と対処が書かれていないことが多い。
-// よく出るものは、何をすればいいかに翻訳する。
+// Microsoft's errors name the failure but rarely the fix. Translate the ones
+// that actually come up into an instruction.
 function explain(message) {
   const m = String(message || '');
   if (m.includes('AADSTS7000215')) {
@@ -61,13 +62,15 @@ function explain(message) {
 
 function checkClock() {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '(不明)';
-  // getTimezoneOffset は「UTC からの差」を分で、符号が逆に返る。
+  // getTimezoneOffset returns minutes, and with the opposite sign to the one
+  // everybody expects.
   const offsetHours = -new Date().getTimezoneOffset() / 60;
   const label = `${tz} / UTC${offsetHours >= 0 ? '+' : ''}${offsetHours}`;
 
-  // 予約は「8月7日 9:00」という文字列で保存され、過去かどうかの判定に
-  // このサーバーの時計を使う。利用者と時計がずれていると、正しい時刻の予約が
-  // 「過去です」と拒否される。タイは UTC+7。
+  // Bookings are stored as wall-clock strings and "is this in the past" is
+  // decided against this server's own clock. A server in the wrong zone
+  // therefore rejects times that are perfectly valid where the users are.
+  // Thailand is UTC+7.
   if (offsetHours === 7) {
     line(OK, `サーバーの時計: ${label}`);
   } else {
@@ -106,7 +109,7 @@ async function main() {
     today.getDate()
   ).padStart(2, '0')}`;
 
-  // 1. サインインできるか。ここで落ちるなら ID かシークレットの問題。
+  // 1. Can it sign in at all? A failure here is the ids or the secret.
   let people;
   try {
     const result = await graph.freeBusy(
@@ -128,8 +131,9 @@ async function main() {
     process.exit(1);
   }
 
-  // 2. カレンダーが実際に読めるか。読めない相手は空ではなくエラーで返るので、
-  //    「予定がない人」と取り違えずに済む。
+  // 2. Can a calendar actually be read? A mailbox that cannot be read comes
+  //    back as an error rather than as an empty day, which is the whole
+  //    difference between "free" and "we could not look".
   const me = people[0];
   if (!me || me.error) {
     fail(
@@ -151,7 +155,8 @@ async function main() {
     );
   }
 
-  // 3. 名前検索（任意の権限）。無くても動くので、落とさず案内だけする。
+  // 3. Directory search needs a second permission that may not be granted.
+  //    It is optional, so this reports rather than fails.
   try {
     const found = await graph.searchPeople('a');
     if (found.people.length) {

@@ -5,8 +5,8 @@ const config = require('../config');
 
 const router = express.Router();
 
-// 現在ログイン中のユーザー情報を返す。
-// フロントエンドは予約フォームの部署名・氏名の初期値としてこれを利用する。
+// Who is logged in. The frontend uses this to prefill the department and name
+// on the booking form.
 router.get('/me', (req, res) => {
   res.json({
     name: req.user?.name || '',
