@@ -13,7 +13,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// 会議室
+// Meeting rooms
 model rooms {
   id          Int        @id @default(autoincrement())
   name        String     @db.NVarChar(200)
@@ -29,7 +29,7 @@ model rooms {
   @@unique([name, location])
 }
 
-// 予約
+// Bookings
 // start_at / end_at are local ISO8601 strings ("YYYY-MM-DDTHH:MM"), not UTC
 // datetimes. The frontend and the statistics slice these strings directly, and
 // comparing them as text sorts and ranges correctly because the format is fixed

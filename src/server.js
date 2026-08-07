@@ -39,7 +39,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// 静的ファイル（フロントエンド）
+// Static files — the frontend.
 // Bootstrap only changes when the app is redeployed with a new copy of it, so
 // it is worth caching properly. The app's own files stay on revalidation, so a
 // deploy takes effect on the next page load rather than whenever a cache
@@ -50,7 +50,7 @@ app.use(
 );
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// ヘルスチェック
+// Health check.
 //
 // Answers for the database, not just for the process. Without the query this
 // returned ok while every booking screen was failing, so anything watching it
@@ -65,7 +65,7 @@ app.get('/healthz', async (req, res) => {
   }
 });
 
-// 認証（開発中はモック）。API 全体に適用する。
+// Authentication (mock while there is no login). Applies to the whole API.
 app.use('/api', authenticate);
 
 app.use('/api/auth', require('./routes/auth'));
@@ -106,7 +106,7 @@ function dbUnreachable(err) {
   );
 }
 
-// エラーハンドラ
+// Error handler.
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   console.error(err);

@@ -2,10 +2,12 @@
 
 const config = require('../config');
 
-// 認証ミドルウェア。
-// - 開発中 (AUTH_MODE=mock): .env のモックユーザーを req.user に設定する。
-// - 本番 (AUTH_MODE=checklogin): 既存の /checklogin を利用する想定。
-//   ここでは連携ポイントのみ用意し、セッション/ヘッダからユーザーを取得する。
+// Authentication middleware.
+// - AUTH_MODE=mock       : no login. req.user is left empty and the browser
+//                          supplies the department and name with each booking.
+// - AUTH_MODE=checklogin : reuse the company's existing /checklogin. Only the
+//                          integration point lives here; the user is read from
+//                          the session or the request headers.
 async function authenticate(req, res, next) {
   try {
     // No login: the browser sends the department and name with each booking,
@@ -15,9 +17,9 @@ async function authenticate(req, res, next) {
       return next();
     }
 
-    // 本番: 既存 /checklogin を流用する連携ポイント。
-    // 実際の運用ではリバースプロキシ/セッションで検証済みのユーザー情報が
-    // ヘッダ等で渡ってくる想定。ここではヘッダをフォールバックとして読む。
+    // Production: the integration point for the existing /checklogin. In real
+    // use the already-verified user arrives from the reverse proxy or the
+    // session; the headers below are the fallback read here.
     const name = req.get('X-User-Name');
     const department = req.get('X-User-Department');
     if (name) {

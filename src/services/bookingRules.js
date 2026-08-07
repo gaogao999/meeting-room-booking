@@ -2,10 +2,10 @@
 
 const config = require('../config');
 
-// ---- 日時ユーティリティ（ローカルタイム、ISO8601 "YYYY-MM-DDTHH:MM" 想定）----
+// ---- Date helpers. Local time throughout, in the form "YYYY-MM-DDTHH:MM" ----
 
-// "2026-07-01T09:30" 形式の文字列を Date に変換する。
-// new Date(str) はタイムゾーンの解釈が曖昧なため、明示的にローカル生成する。
+// Turn "2026-07-01T09:30" into a Date. Built field by field rather than with
+// new Date(str), whose reading of the time zone is ambiguous.
 function parseLocal(str) {
   const m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/.exec(String(str || '').trim());
   if (!m) return null;
@@ -19,7 +19,8 @@ function parseLocal(str) {
     0,
     0
   );
-  // 例: 2月30日のような不正値は Date が繰り上げるので検証する
+  // Date rolls an impossible day forward — 30 February becomes 2 March — so
+  // check the parts came back as they went in.
   if (
     date.getFullYear() !== Number(y) ||
     date.getMonth() !== Number(mo) - 1 ||
@@ -34,7 +35,7 @@ function pad(n) {
   return String(n).padStart(2, '0');
 }
 
-// Date を "YYYY-MM-DDTHH:MM" に正規化する
+// Render a Date back as "YYYY-MM-DDTHH:MM".
 function formatLocal(date) {
   return (
     `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
@@ -42,7 +43,7 @@ function formatLocal(date) {
   );
 }
 
-// 部門が HR 系かどうかを判定する（部分一致）
+// Is this an HR department? Matched loosely, so "GA.HR" and "HR" both count.
 function isHrDepartment(department) {
   if (!department) return false;
   const dep = String(department).toLowerCase();
@@ -51,7 +52,7 @@ function isHrDepartment(department) {
   );
 }
 
-// 部門ごとの予約可能な最終日時（この時刻以前まで予約可）を返す
+// The furthest ahead this department may book. HR gets a longer window.
 function bookingWindowEnd(department, now = new Date()) {
   const days = isHrDepartment(department)
     ? config.booking.windowHrDays
@@ -61,7 +62,6 @@ function bookingWindowEnd(department, now = new Date()) {
   return end;
 }
 
-// 予約内容を検証する。問題があれば { ok:false, error } を返す。
 // Long enough for any real department code, name or meeting title, short
 // enough that nobody can park a novel in the database.
 const MAX_LENGTHS = { department: 60, reserver: 80, purpose: 200 };

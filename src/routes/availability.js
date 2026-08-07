@@ -7,8 +7,8 @@ const { parseLocal, formatLocal } = require('../services/bookingRules');
 
 const router = express.Router();
 
-// 指定した時間帯 [start_at, end_at) に空いている会議室を一括検索する。
-// 予約可能期間（部門ルール）は検索段階では考慮しない（純粋な空き状況の照会）。
+// Which rooms are free for [start_at, end_at), all in one go. How far ahead a
+// department may book is not considered here — this answers only "is it taken".
 router.get('/', async (req, res, next) => {
   try {
     const s = parseLocal(req.query.start_at);
@@ -26,7 +26,8 @@ router.get('/', async (req, res, next) => {
       byLocationThenName
     );
 
-    // 半開区間 [start, end) の重複判定。
+    // Overlap on the half-open interval [start, end): a booking that ends
+    // exactly when this one starts does not count.
     // One query for every room rather than one per room, and it asks only which
     // rooms are taken — who booked them is on the schedule, and this endpoint has
     // no reason to hand it out.
