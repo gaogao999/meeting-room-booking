@@ -734,6 +734,10 @@ function renderFreeNow(bookingsByRoom) {
       `<span class="fn-none">Nothing free for ${durText(state.freeNowMins)} from ${fmtMin(from)}.</span>`;
     return;
   }
+  // One chip per room on a single line: the name, where it is, and the end
+  // time only when there is one. "Free all day" was on every second chip and
+  // said nothing — the grid underneath shows the whole day anyway, and this
+  // strip is only meant to answer "which room, right now".
   list.innerHTML = rooms
     .map(({ room, until }) => {
       const facts = roomFacts(room);
@@ -744,7 +748,7 @@ function renderFreeNow(bookingsByRoom) {
         `<span class="fn-meta">${escapeHtml(room.location || '')}${
           facts ? ' · ' + escapeHtml(facts) : ''
         }</span>` +
-        `<span class="fn-free">free ${until >= DAY_END ? 'all day' : 'until ' + fmtMin(until)}</span>` +
+        (until >= DAY_END ? '' : `<span class="fn-free">until ${fmtMin(until)}</span>`) +
         '</button>'
       );
     })
@@ -927,12 +931,20 @@ function renderTimeline(bookingsByRoom) {
     const frac = ((now - DAY_START) / SPAN).toFixed(5);
     html +=
       `<div class="tl-nowline" style="left:calc(var(--tl-room-w) + (100% - var(--tl-room-w)) * ${frac})"` +
-      ` aria-hidden="true"><span class="tl-nowdot"></span>` +
-      `<span class="tl-nowtime">${fmtMin(now)}</span></div>`;
+      ' aria-hidden="true"></div>';
   }
-  html += `<div class="tl-row tl-head"><div class="tl-roomcell">Room</div><div class="tl-track">${headHours.join(
-    ''
-  )}</div></div>`;
+  // The same minute marked on the hour ruler, and the clock reading with it.
+  // It goes inside the header row rather than being part of the line above:
+  // that row is sticky and opaque, so anything drawn underneath it disappears,
+  // and the line has to stay underneath to pass behind the meetings.
+  const nowTick =
+    isToday() && now >= DAY_START && now <= DAY_END
+      ? `<div class="tl-nowtick" style="left:${(((now - DAY_START) / SPAN) * 100).toFixed(3)}%"` +
+        ` aria-hidden="true"><span class="tl-nowtime">${fmtMin(now)}</span></div>`
+      : '';
+  html +=
+    '<div class="tl-row tl-head"><div class="tl-roomcell">Room</div>' +
+    `<div class="tl-track">${headHours.join('')}${nowTick}</div></div>`;
 
   html += renderPeopleRows();
 
