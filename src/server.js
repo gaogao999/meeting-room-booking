@@ -86,6 +86,9 @@ app.get('/api/config', (req, res) => {
     windowHrDays: config.booking.windowHrDays,
     hrDepartments: config.booking.hrDepartments,
     departments: config.booking.departments,
+    // The order the sites are listed in, so the browser groups the schedule the
+    // same way the catalog does without keeping its own copy of the list.
+    locations: require('./db/roomCatalog').LOCATION_ORDER,
   });
 });
 

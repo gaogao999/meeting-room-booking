@@ -45,7 +45,7 @@ model bookings {
   status     String   @default("confirmed") @db.VarChar(20)
   created_by String?  @db.NVarChar(80)
   created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  updated_at DateTime @default(now()) @updatedAt
 
   // Who was invited, as a JSON array of {name, email}, and the online meeting
   // to join. Kept as text rather than a second table: nothing queries or joins

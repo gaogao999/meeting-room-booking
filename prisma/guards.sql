@@ -40,11 +40,20 @@ IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'bookings_end_at
     ADD CONSTRAINT [bookings_end_at_format] CHECK
     ([end_at] LIKE '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]');
 
--- `prisma db push` leaves updated_at NOT NULL with no default, because Prisma
--- fills @updatedAt from the client and never needs one. Anything writing SQL
--- directly then fails on a column it has no reason to know about, so give it a
--- default. (migrate deploy's own migration already carries one.)
-IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE name = 'bookings_updated_at_df')
+-- Anything writing SQL directly fails on updated_at unless the column has a
+-- default, because it has no reason to know about a column Prisma fills from
+-- the client side. The schema now declares `@default(now())`, so both
+-- `db push` and `migrate deploy` create one — but a database built before that
+-- has the column with no default at all, and this is what repairs it.
+--
+-- Checked by column rather than by name: SQL Server allows a column only one
+-- default, and the one Prisma creates carries Prisma's name, not ours. Looking
+-- for our name would find nothing and then fail trying to add a second.
+IF NOT EXISTS (
+  SELECT 1 FROM sys.default_constraints d
+  JOIN sys.columns c ON c.object_id = d.parent_object_id AND c.column_id = d.parent_column_id
+  WHERE d.parent_object_id = OBJECT_ID('dbo.bookings') AND c.name = 'updated_at'
+)
   ALTER TABLE [dbo].[bookings]
     ADD CONSTRAINT [bookings_updated_at_df] DEFAULT CURRENT_TIMESTAMP FOR [updated_at];
 
