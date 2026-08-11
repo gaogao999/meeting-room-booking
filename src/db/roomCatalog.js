@@ -15,23 +15,23 @@
 const ROOMS = [
   // Bang Na
   { name: 'Training Room', location: 'Bang Na', capacity: null, description: null },
-  { name: 'Meeting Room1', location: 'Bang Na', capacity: null, description: null },
+  { name: 'Meeting Room 1', location: 'Bang Na', capacity: null, description: null },
   { name: 'Conference Room', location: 'Bang Na', capacity: null, description: null },
   { name: 'Meeting Room 2', location: 'Bang Na', capacity: null, description: null },
   { name: 'Meeting Room 3', location: 'Bang Na', capacity: null, description: null },
   { name: 'Meeting Room 4', location: 'Bang Na', capacity: null, description: null },
   // Amata F1
   { name: 'Conference Room 1st', location: 'Amata F1', capacity: null, description: null },
-  { name: 'Gust Room 2nd', location: 'Amata F1', capacity: null, description: null },
+  { name: 'Guest Room 2nd', location: 'Amata F1', capacity: null, description: null },
   { name: 'Small meeting', location: 'Amata F1', capacity: null, description: null },
   // Amata F2
   { name: 'Conference Room', location: 'Amata F2', capacity: null, description: null },
-  { name: 'Meeting Room1', location: 'Amata F2', capacity: null, description: null },
-  { name: 'Meeting Room2', location: 'Amata F2', capacity: null, description: null },
-  { name: 'Meeting Room3', location: 'Amata F2', capacity: null, description: null },
+  { name: 'Meeting Room 1', location: 'Amata F2', capacity: null, description: null },
+  { name: 'Meeting Room 2', location: 'Amata F2', capacity: null, description: null },
+  { name: 'Meeting Room 3', location: 'Amata F2', capacity: null, description: null },
   // Amata F3
-  { name: 'Meeting Room1', location: 'Amata F3', capacity: null, description: null },
-  { name: 'Meeting Room2', location: 'Amata F3', capacity: null, description: null },
+  { name: 'Meeting Room 1', location: 'Amata F3', capacity: null, description: null },
+  { name: 'Meeting Room 2', location: 'Amata F3', capacity: null, description: null },
 ];
 
 const key = (r) => `${r.name} ${r.location || ''}`;
