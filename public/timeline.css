@@ -812,11 +812,12 @@
   bottom: 0;
   width: 2px;
   background: #d1453b;
-  /* Above the location group rows, which paint their own background and would
-     otherwise cover it. Level with the sticky room column and earlier in the
-     markup, so scrolling the grid tucks the line behind the room names rather
-     than letting it slide across them. */
-  z-index: 1;
+  /* Positioned but at the base level, and first in the markup. That puts it
+     above the location group rows, which paint a background and would otherwise
+     hide it, and below the booking bars, which are positioned and come later —
+     so the line passes behind a meeting instead of striking through its title.
+     It also tucks behind the sticky room column when the grid is scrolled. */
+  z-index: 0;
   pointer-events: none;
 }
 .tl-nowdot {
