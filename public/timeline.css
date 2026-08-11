@@ -4,7 +4,7 @@
  * scrolls horizontally on narrow screens instead of squeezing.
  */
 :root {
-  --tl-room-w: 172px;
+  --tl-room-w: 196px;
   --tl-hour-w: 60px;
   --tl-row-h: 42px;
   --line: #dbe1e8;
@@ -306,6 +306,13 @@
   font-weight: 600;
   color: var(--ink);
   line-height: 1.2;
+  /* A room name wrapping to two lines makes its row taller than the ones around
+     it, so the grid stops lining up with the hour columns beside it. The column
+     is wide enough for the longest name in the catalog; anything longer is cut
+     with an ellipsis rather than allowed to break the row. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .tl-track {
   position: relative;
@@ -436,7 +443,6 @@
 
 @media (max-width: 576px) {
   :root {
-    --tl-room-w: 132px;
     --tl-hour-w: 54px;
     --tl-row-h: 42px;
   }

@@ -3,7 +3,7 @@
 Web app for booking company meeting rooms. Pick a date and time and only the rooms
 free for that slot show up; the whole company's schedule is visible on a timeline.
 
-Current version: v2.4.0. UI is in English.
+Current version: v2.4.1. UI is in English.
 
 The version shown in the app header comes from `package.json`, so bump it there
 when releasing — it's how you confirm which build is actually deployed.
@@ -95,10 +95,10 @@ Currently:
 
 | Location | Rooms |
 | --- | --- |
-| Bang Na | Training Room / Meeting Room1 / Conference Room / Meeting Room 2 / Meeting Room 3 / Meeting Room 4 |
-| Amata F1 | Conference Room 1st / Gust Room 2nd / Small meeting |
-| Amata F2 | Conference Room / Meeting Room1 / Meeting Room2 / Meeting Room3 |
-| Amata F3 | Meeting Room1 / Meeting Room2 |
+| Bang Na | Training Room / Meeting Room 1 / Conference Room / Meeting Room 2 / Meeting Room 3 / Meeting Room 4 |
+| Amata F1 | Conference Room 1st / Guest Room 2nd / Small meeting |
+| Amata F2 | Conference Room / Meeting Room 1 / Meeting Room 2 / Meeting Room 3 |
+| Amata F3 | Meeting Room 1 / Meeting Room 2 |
 
 To change them, edit the catalog and deploy. On startup the database is
 reconciled against the list: new entries are added, capacity/description changes
@@ -115,8 +115,7 @@ can exist at both Bang Na and Amata F2.
 The order in the catalog is the order on screen — sites down the page, rooms
 within a site — and `/api/config` hands that order to the browser so the
 schedule and the analytics group the same way. It is deliberately not
-alphabetical: that would put Amata F1 above the head office, and "Meeting
-Room 2" above "Meeting Room1".
+alphabetical: that would put Amata F1 above the head office.
 
 ## Environment variables
 

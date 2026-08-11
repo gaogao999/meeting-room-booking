@@ -9,7 +9,7 @@ let SPAN = DAY_END - DAY_START;
 // One hour is always this wide, so bar labels never collapse. The grid scrolls
 // horizontally on narrow screens rather than squeezing the day.
 const PX_PER_HOUR = 60;
-const ROOM_COL_PX = 172;
+const ROOM_COL_PX = 196; // keep in step with --tl-room-w in timeline.css
 
 // Bookings are coloured by department, and locations are ordered, by the shared
 // helpers in common.js.
@@ -771,7 +771,11 @@ function renderTimeline(bookingsByRoom) {
 
       html +=
         `<div class="tl-row"><div class="tl-roomcell">` +
-        `<span class="tl-roomname">${escapeHtml(room.name)}</span></div>` +
+        // The name carries its own tooltip: on a narrow screen the column is
+        // too small for the longest of them and the end is cut off.
+        `<span class="tl-roomname" title="${escapeHtml(room.name)}">${escapeHtml(
+          room.name
+        )}</span></div>` +
         `<div class="tl-track" data-room="${room.id}">${hourLines()}${renderFreeCells(
           room,
           list
