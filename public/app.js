@@ -1092,6 +1092,61 @@ function startFromCell(roomId, startMin, endMin, shiftKey = false) {
   findRooms(roomId).then(loadTimeline);
 }
 
+// ---- Giving the room back, and keeping it a bit longer ---------------------
+//
+// Borrowed from the room displays the paid products sell: a meeting that
+// finishes at twenty past should not hold the room until the hour. Both of
+// these move only the end time, so they work on a booking already under way.
+
+function isRunning(b) {
+  if (b.start_at.slice(0, 10) !== todayStr()) return false;
+  const now = nowMinutes();
+  return minutesOfDay(b.start_at, b.start_at.slice(0, 10)) <= now &&
+    minutesOfDay(b.end_at, b.start_at.slice(0, 10)) > now;
+}
+
+// End it at the next slot boundary — never before it started, never later than
+// it was already going to end.
+async function endNow(b) {
+  const slot = state.config.slotMinutes;
+  const start = minutesOfDay(b.start_at, b.start_at.slice(0, 10));
+  const end = minutesOfDay(b.end_at, b.start_at.slice(0, 10));
+  const at = Math.min(end, Math.max(start + slot, Math.ceil(nowMinutes() / slot) * slot));
+  if (at >= end) {
+    alert('This booking is already about to end.');
+    return false;
+  }
+  return saveEnd(b, at, `Room freed from ${fmtMin(at)}.`);
+}
+
+async function extendBy(b, mins) {
+  const end = minutesOfDay(b.end_at, b.start_at.slice(0, 10));
+  const at = Math.min(DAY_END, end + mins);
+  if (at <= end) {
+    alert('This booking already runs to the end of the day.');
+    return false;
+  }
+  return saveEnd(b, at, `Extended to ${fmtMin(at)}.`);
+}
+
+async function saveEnd(b, endMin, okMessage) {
+  const date = b.start_at.slice(0, 10);
+  try {
+    await api(`/api/bookings/${b.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ end_at: `${date}T${pad(Math.floor(endMin / 60))}:${pad(endMin % 60)}` }),
+    });
+    showAlert(okMessage, 'success');
+    loadTimeline();
+    findRooms();
+    return true;
+  } catch (err) {
+    // The usual reason an extension fails is that somebody has the next slot.
+    showAlert(err.message, 'danger');
+    return false;
+  }
+}
+
 // ---- Telling the people you invited ----------------------------------------
 //
 // Sending mail from the server needs the company mail server, which needs IT.
@@ -1205,6 +1260,9 @@ async function loadMyBookings() {
             `<div class="m-what"><b>${escapeHtml(b.room_name)}</b>` +
             `<span>${escapeHtml(b.purpose || b.department)}</span></div>` +
             '<div class="m-act">' +
+            (isRunning(b)
+              ? '<button type="button" class="btn btn-sm btn-success" data-act="end">Free the room</button>'
+              : '') +
             `<button type="button" class="btn btn-sm btn-outline-primary" data-act="edit">Change</button>` +
             `<a class="btn btn-sm btn-outline-secondary" href="/api/bookings/${b.id}/ics">Calendar</a>` +
             `<button type="button" class="btn btn-sm btn-outline-danger" data-act="cancel">Cancel</button>` +
@@ -1268,12 +1326,28 @@ function openDetail(b) {
       : '') +
     (b.mine
       ? ' <button type="button" class="btn btn-outline-secondary btn-sm" id="detailEdit">Change this booking</button>'
+      : '') +
+    (b.mine && isRunning(b)
+      ? '<div class="running-acts"><span>Meeting under way</span>' +
+        '<button type="button" class="btn btn-sm btn-success" id="detailEndNow">Finished — free the room</button>' +
+        '<button type="button" class="btn btn-sm btn-outline-secondary" data-extend="10">+10 min</button>' +
+        '<button type="button" class="btn btn-sm btn-outline-secondary" data-extend="30">+30 min</button></div>'
       : '');
   if (b.mine) {
     document.getElementById('detailEdit').addEventListener('click', () => {
       detailModal.hide();
       editBooking(b);
     });
+  }
+  if (b.mine && isRunning(b)) {
+    document.getElementById('detailEndNow').addEventListener('click', async () => {
+      if (await endNow(b)) detailModal.hide();
+    });
+    for (const btn of document.querySelectorAll('#detailBody [data-extend]')) {
+      btn.addEventListener('click', async () => {
+        if (await extendBy(b, +btn.getAttribute('data-extend'))) detailModal.hide();
+      });
+    }
   }
   detailModal.show();
 }
@@ -1360,6 +1434,10 @@ async function init() {
     if (act.getAttribute('data-act') === 'edit') {
       myModal.hide();
       editBooking(b);
+      return;
+    }
+    if (act.getAttribute('data-act') === 'end') {
+      if (await endNow(b)) loadMyBookings();
       return;
     }
     const when = `${fmtStamp(b.start_at)}\u2013${fmtClock(b.end_at.slice(11, 16))}`;

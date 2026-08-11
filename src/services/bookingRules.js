@@ -132,7 +132,11 @@ function checkMeetingUrl(url) {
   return { ok: true, value };
 }
 
-function validateBooking({ startAt, endAt, department }, now = new Date()) {
+// `allowStarted` is for a booking that has already begun and is only being
+// shortened or extended. Creating one in the past stays refused; a meeting
+// running right now is a fact, and refusing to let anyone end it early would
+// keep the room held for the rest of the hour for no reason.
+function validateBooking({ startAt, endAt, department, allowStarted = false }, now = new Date()) {
   const start = parseLocal(startAt);
   const end = parseLocal(endAt);
   const slot = config.booking.slotMinutes;
@@ -160,7 +164,7 @@ function validateBooking({ startAt, endAt, department }, now = new Date()) {
   }
 
   // No bookings in the past (start before now)
-  if (start < now) {
+  if (!allowStarted && start < now) {
     return { ok: false, error: 'Cannot book a time in the past.' };
   }
 

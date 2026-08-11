@@ -955,3 +955,23 @@
     margin: 0 10px 10px;
   }
 }
+
+/* Actions for a meeting that is happening right now. Freeing the room is the
+   one worth pressing, so it is the only filled button here. */
+.running-acts {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 14px;
+  padding-top: 13px;
+  border-top: 1px dashed var(--line-strong);
+}
+.running-acts > span {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-right: auto;
+}
