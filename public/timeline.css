@@ -723,9 +723,17 @@
 
 /* ---- right now: the walk-up case, and where "now" is on the grid ---- */
 
+/* One line, and no more. Everything this strip says is in the grid below it —
+   it is here to save a walk-up user reading the grid at all, so the moment it
+   grows into a block of cards it is costing more room than it saves. The
+   chips scroll sideways rather than wrapping. */
 .freenow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
   margin: 0 14px 10px;
-  padding: 12px 14px;
+  padding: 8px 12px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: #f7fbf8;
@@ -733,8 +741,8 @@
 .fn-head {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 9px;
+  gap: 10px;
+  flex: 0 0 auto;
 }
 .fn-title {
   font-size: 13px;
@@ -746,7 +754,6 @@
 .fn-durs {
   display: flex;
   gap: 4px;
-  margin-left: auto;
 }
 .fn-dur {
   border: 1px solid var(--line-strong);
@@ -769,21 +776,27 @@
 }
 .fn-list {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-wrap: nowrap;
+  gap: 6px;
+  flex: 1 1 220px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding-bottom: 2px;
 }
 /* One tap from "I need a room" to the form filled in. */
 .fn-room {
   display: flex;
-  flex-direction: column;
-  gap: 1px;
+  align-items: baseline;
+  gap: 6px;
+  flex: 0 0 auto;
+  white-space: nowrap;
   text-align: left;
   border: 1px solid #9cc9a9;
-  border-radius: 9px;
+  border-radius: 999px;
   background: #fff;
-  padding: 7px 12px;
+  padding: 4px 12px;
   cursor: pointer;
-  min-width: 150px;
 }
 .fn-room:hover {
   border-color: #4c9a63;
@@ -796,7 +809,7 @@
   outline-offset: 2px;
 }
 .fn-name {
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--ink);
 }
@@ -804,10 +817,12 @@
   font-size: 11.5px;
   color: var(--ink-3);
 }
+/* Only there when the room is not free for the rest of the day, so it reads as
+   a warning rather than as a label every chip carries. */
 .fn-free {
   font-size: 11.5px;
   font-weight: 600;
-  color: #1b6b34;
+  color: #b4530f;
 }
 .fn-none {
   font-size: 13.5px;
@@ -820,7 +835,8 @@
   position: relative;
 }
 /* Starts below the hour-label row, which is sticky and opaque and would hide
-   anything drawn underneath it — that row is --tl-row-h tall. */
+   anything drawn underneath it — that row is --tl-row-h tall. The ruler gets
+   its own marker instead, .tl-nowtick below. */
 .tl-nowline {
   position: absolute;
   top: var(--tl-row-h);
@@ -835,17 +851,18 @@
   z-index: 0;
   pointer-events: none;
 }
-.tl-nowdot {
+/* Now on the hour ruler. Inside the header row, so it is on top of it rather
+   than hidden beneath; below the room column within that row, so scrolling
+   sideways tucks it away rather than dragging it across the word "Room". */
+.tl-nowtick {
   position: absolute;
-  top: -4px;
-  left: -3px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
   background: #d1453b;
+  z-index: 0;
+  pointer-events: none;
 }
-/* Beside the line rather than above it: the header row is sticky and opaque,
-   so a label placed above the line disappears underneath it. */
 .tl-nowtime {
   position: absolute;
   top: 1px;
