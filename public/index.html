@@ -75,17 +75,17 @@
                 <div class="col-6 mb-2">
                   <label class="form-label d-block">Start <span class="text-danger">*</span></label>
                   <div class="input-group">
-                    <select class="form-select" id="startHour" required></select>
+                    <select class="form-select" id="startHour" required aria-label="Start hour"></select>
                     <span class="input-group-text px-2">:</span>
-                    <select class="form-select" id="startMin" required></select>
+                    <select class="form-select" id="startMin" required aria-label="Start minute"></select>
                   </div>
                 </div>
                 <div class="col-6 mb-2">
                   <label class="form-label d-block">End <span class="text-danger">*</span></label>
                   <div class="input-group">
-                    <select class="form-select" id="endHour" required></select>
+                    <select class="form-select" id="endHour" required aria-label="End hour"></select>
                     <span class="input-group-text px-2">:</span>
-                    <select class="form-select" id="endMin" required></select>
+                    <select class="form-select" id="endMin" required aria-label="End minute"></select>
                   </div>
                 </div>
               </div>
@@ -100,12 +100,12 @@
                 <span class="panel-sub">Only rooms free for this time are listed.</span>
                 <label class="seats-filter" id="seatsWrap" hidden>
                   <span>For</span>
-                  <select class="form-select form-select-sm" id="seats">
+                  <select class="form-select form-select-sm" id="seats" aria-label="Minimum room size">
                     <option value="">any size</option>
                   </select>
                 </label>
               </div>
-              <select class="form-select mb-1" id="roomId" required disabled>
+              <select class="form-select mb-1" id="roomId" required disabled aria-label="Room">
                 <option value="">Select a date and time</option>
               </select>
               <div class="form-text mb-3" id="availHint"></div>
@@ -147,7 +147,7 @@
               <button class="btn btn-outline-secondary" id="prevDay" aria-label="Previous day">&lt;</button>
               <button class="btn btn-outline-secondary fw-semibold" id="today">Today</button>
               <button class="btn btn-outline-secondary" id="nextDay" aria-label="Next day">&gt;</button>
-              <input type="date" class="form-control" id="tlDate" style="width:auto" />
+              <input type="date" class="form-control" id="tlDate" style="width:auto" aria-label="Show this day" />
             </div>
             <div class="ms-auto d-flex align-items-center gap-3 panel-sub">
               <span class="d-flex align-items-center gap-2"><span class="sw" style="width:14px;height:14px;border-radius:4px;background:#2563eb"></span>Booked</span>

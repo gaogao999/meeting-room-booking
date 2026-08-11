@@ -62,6 +62,14 @@ function bookingWindowEnd(department, now = new Date()) {
   return end;
 }
 
+// Control characters are never part of a name, a department or a meeting title,
+// and they are exactly what turns one line of a calendar file into two. Taken
+// out on the way in, so nothing downstream has to remember them — the calendar
+// file guards its own output too, but this is the cheaper of the two places.
+function stripControl(value) {
+  return value == null ? value : String(value).replace(/[\u0000-\u001f\u007f-\u009f]/g, '');
+}
+
 // Long enough for any real department code, name or meeting title, short
 // enough that nobody can park a novel in the database.
 const MAX_LENGTHS = { department: 60, reserver: 80, purpose: 200 };
@@ -97,7 +105,7 @@ function normalizeParticipants(input) {
   for (const raw of input) {
     const entry = raw && typeof raw === 'object' ? raw : { email: raw };
     const email = String(entry.email || '').trim();
-    const name = String(entry.name || '').trim() || email;
+    const name = stripControl(String(entry.name || '')).trim() || email;
     if (!email) continue;
     // Deliberately loose: enough to catch a typed mistake, not an attempt to
     // decide which addresses Microsoft considers real.
@@ -163,8 +171,15 @@ function validateBooking({ startAt, endAt, department, allowStarted = false }, n
     return { ok: false, error: `Duration must be in ${slot}-minute increments.` };
   }
 
-  // No bookings in the past (start before now)
-  if (!allowStarted && start < now) {
+  // No bookings in the past — but "the past" begins at the top of the slot we
+  // are currently inside, not at this exact second. Taking a room from "Free
+  // right now" at 13:29 offers 13:30; spending a minute filling in the form
+  // then made that a booking in the past and it was refused, with the user
+  // having done nothing wrong. Booking the slot you are standing in is allowed.
+  const slotStart = new Date(now);
+  slotStart.setSeconds(0, 0);
+  slotStart.setMinutes(Math.floor(slotStart.getMinutes() / slot) * slot);
+  if (!allowStarted && start < slotStart) {
     return { ok: false, error: 'Cannot book a time in the past.' };
   }
 
@@ -208,6 +223,7 @@ function validateBooking({ startAt, endAt, department, allowStarted = false }, n
 // isHrDepartment / bookingWindowEnd are only used by validateBooking below, so
 // they stay private to this module.
 module.exports = {
+  stripControl,
   parseLocal,
   formatLocal,
   validateBooking,

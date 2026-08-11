@@ -486,9 +486,11 @@
   align-items: center;
 }
 .tl-booking.is-narrow .tl-purpose {
-  font-size: 10.5px;
+  /* 11px is the floor for anything anyone has to read; the department code is
+     short enough that tightening the letters buys the width instead. */
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
 }
 
 /* ---- participants: picking people, and their calendars on the schedule ---- */
@@ -532,10 +534,15 @@
   padding: 7px 12px;
   cursor: pointer;
 }
-.people-sugg .sugg:hover,
+.people-sugg .sugg:hover {
+  background: #eef4fc;
+}
+/* Keyboard focus needs to be visible on its own, not only as a hover colour:
+   somebody tabbing through has no pointer to tell them where they are. */
 .people-sugg .sugg:focus-visible {
   background: #eef4fc;
-  outline: none;
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
 }
 .people-sugg .s-name {
   font-size: 14px;
@@ -681,11 +688,15 @@
   overflow: hidden;
   white-space: nowrap;
 }
-.tl-allfree:hover,
+.tl-allfree:hover {
+  background: #d3ecda;
+  border-color: #4c9a63;
+}
 .tl-allfree:focus-visible {
   background: #d3ecda;
   border-color: #4c9a63;
-  outline: none;
+  outline: 2px solid #1b6b34;
+  outline-offset: 1px;
 }
 /* Your own row, so you can find yourself without reading every name. */
 .tl-row.is-person.is-you .tl-roomcell {
@@ -759,11 +770,15 @@
   cursor: pointer;
   min-width: 150px;
 }
-.fn-room:hover,
+.fn-room:hover {
+  border-color: #4c9a63;
+  background: #eaf5ed;
+}
 .fn-room:focus-visible {
   border-color: #4c9a63;
   background: #eaf5ed;
-  outline: none;
+  outline: 2px solid #1b6b34;
+  outline-offset: 2px;
 }
 .fn-name {
   font-size: 14px;
@@ -819,7 +834,7 @@
   position: absolute;
   top: 1px;
   left: 6px;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
   color: #fff;
   background: #d1453b;
@@ -974,4 +989,24 @@
   text-transform: uppercase;
   color: var(--ink-3);
   margin-right: auto;
+}
+
+
+/* On a phone everything is a thumb, so the small chrome — the nav links, the
+   location chips, the My bookings button — gets tall enough to hit. */
+@media (max-width: 576px) {
+  .app-nav .nav-link {
+    min-height: 40px;
+    padding: 0 14px;
+  }
+  .nav-btn {
+    min-height: 36px;
+  }
+  .chipbar .chip {
+    min-height: 36px;
+  }
+  .fn-dur {
+    min-height: 32px;
+    padding: 4px 14px;
+  }
 }

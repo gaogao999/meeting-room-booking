@@ -6,7 +6,7 @@ const graph = require('../services/graph');
 
 const router = express.Router();
 
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const { parseLocal } = require('../services/bookingRules');
 
 // Whether real calendars are reachable at all. The frontend asks once, on load,
 // so it can say plainly on the page whether what follows is somebody's actual
@@ -33,9 +33,11 @@ router.get('/', async (req, res, next) => {
 router.post('/freebusy', async (req, res, next) => {
   try {
     const body = req.body || {};
+    // Parsed rather than pattern-matched: "2026-13-45" satisfies a regex and is
+    // not a day, and asking Microsoft about it is a request that can only fail.
     const date = String(body.date || '');
-    if (!DATE_RE.test(date)) {
-      return res.status(400).json({ error: 'Please provide a date.' });
+    if (!parseLocal(date + 'T00:00')) {
+      return res.status(400).json({ error: 'Please provide a valid date.' });
     }
     const emails = Array.isArray(body.emails) ? body.emails.map((e) => String(e).trim()) : [];
     // One row per person on a screen someone has to read — well past the point
