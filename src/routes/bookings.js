@@ -344,7 +344,10 @@ router.put('/:id', async (req, res, next) => {
       return res.status(404).json({ error: 'Room not found or unavailable.' });
     }
 
-    const check = validateBooking({ startAt, endAt, department });
+    // Ending a meeting early, or extending one that is under way, changes only
+    // the end — so a start that is already behind us is not a reason to refuse.
+    const startUnchanged = String(startAt) === existing.start_at;
+    const check = validateBooking({ startAt, endAt, department, allowStarted: startUnchanged });
     if (!check.ok) return res.status(400).json({ error: check.error });
     const norm = check.normalized;
 

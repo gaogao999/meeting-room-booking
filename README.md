@@ -3,7 +3,7 @@
 Web app for booking company meeting rooms. Pick a date and time and only the rooms
 free for that slot show up; the whole company's schedule is visible on a timeline.
 
-Current version: v2.5.1. UI is in English.
+Current version: v2.6.0. UI is in English.
 
 The version shown in the app header comes from `package.json`, so bump it there
 when releasing — it's how you confirm which build is actually deployed.
@@ -44,6 +44,13 @@ when releasing — it's how you confirm which build is actually deployed.
   yet — the only way to find one without knowing its date, since bookings are
   identified by device rather than by login. Each can be changed, cancelled, or
   added to a calendar from there.
+- A meeting that is under way can be ended early — `Finished — free the room`
+  hands the rest of the slot back to everyone else — or extended by 10 or 30
+  minutes if the room is still free after it. Borrowed from the room displays
+  the paid products sell, and the reason the "no bookings in the past" rule now
+  makes an exception: it refuses a booking that *starts* in the past, but a
+  meeting already running is a fact, and holding the room until the hour because
+  nobody may touch it is the opposite of the point.
 - A booking can be changed rather than cancelled and re-made, which used to lose
   the room in the gap. The same device rule covers changing and cancelling: only
   the browser that made a booking can do either.
