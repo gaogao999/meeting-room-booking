@@ -24,6 +24,8 @@ const state = {
     hrDepartments: [],
   },
   authMode: 'mock',
+  // Set only when the login hands over the mailbox; then the form stops asking.
+  myEmail: '',
   date: null,
   rooms: [],
   locFilter: 'All',
@@ -230,12 +232,26 @@ function rememberCurrent() {
   updateUserChip(name, department);
 }
 
-// Your own address, if you have given one. Without a login the app has no way
-// to know which mailbox is yours, and free/busy is looked up by address — so
-// this is what puts your own calendar on the grid next to everyone else's.
+// Your own address. Free/busy is looked up by mailbox, and this is what puts
+// your own calendar on the grid next to everyone else's.
+//
+// A login that carries the address wins outright — nobody should have to type
+// in who they already signed in as. The box is only there for the case where
+// the app has no way of knowing: no login, or a login that hands over a name
+// and a department but not a mailbox.
 function myEmail() {
+  if (state.myEmail) return state.myEmail;
   const value = document.getElementById('myEmail').value.trim();
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? value : '';
+}
+
+// Swap the box for a plain line naming the mailbox the schedule will use.
+function useAccountEmail(email) {
+  state.myEmail = email;
+  document.getElementById('myEmail').hidden = true;
+  const fixed = document.getElementById('myEmailFixed');
+  fixed.innerHTML = `Your calendar (<strong>${escapeHtml(email)}</strong>) is shown automatically.`;
+  fixed.hidden = false;
 }
 
 // Everyone whose calendar belongs on the schedule: you first, then the people
@@ -1548,15 +1564,22 @@ async function init() {
     const me =
       user.mode === 'mock'
         ? remembered()
-        : { name: user.name, department: user.department };
+        : { name: user.name, department: user.department, email: user.email };
 
     fillDepartments(cfg.departments || [], me.department);
     document.getElementById('reserver').value = me.name || '';
-    document.getElementById('myEmail').value = me.email || '';
     updateUserChip(me.name, document.getElementById('department').value);
     if (user.mode !== 'mock') {
       document.getElementById('department').disabled = true;
       document.getElementById('reserver').readOnly = true;
+    }
+    // The signed-in mailbox is the app's, not the user's, to fill in. Without
+    // one — no login, or a login that does not carry an address — the box stays
+    // and remembers what was typed last time.
+    if (user.mode !== 'mock' && me.email) {
+      useAccountEmail(me.email);
+    } else {
+      document.getElementById('myEmail').value = me.email || '';
     }
     document.getElementById('date').value = todayStr();
     document.getElementById('tlDate').value = todayStr();

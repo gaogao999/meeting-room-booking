@@ -22,10 +22,16 @@ async function authenticate(req, res, next) {
     // session; the headers below are the fallback read here.
     const name = req.get('X-User-Name');
     const department = req.get('X-User-Department');
+    // The mailbox is what free/busy is looked up by, so a login that carries
+    // one saves everybody typing their own address to see their own calendar.
+    // Not every sign-in has it to give, hence the fallback: no address here
+    // means the form asks, exactly as it does with no login at all.
+    const email = String(req.get('X-User-Email') || '').trim();
     if (name) {
       req.user = {
         name,
         department: department || '',
+        email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : '',
         authenticated: true,
         mode: 'checklogin',
       };

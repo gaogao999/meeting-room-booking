@@ -241,9 +241,12 @@ picks their department and types their name, and the browser keeps both in
 `localStorage` so they only do it once per device. Nothing is filed under a
 placeholder — an empty department or name is rejected rather than defaulted.
 
-`AUTH_MODE=checklogin` takes the user from `X-User-Name` / `X-User-Department`
-request headers, on the assumption a reverse proxy sets them, and the form
-switches to read-only so the booking is filed under the logged-in user. Calling
+`AUTH_MODE=checklogin` takes the user from `X-User-Name` / `X-User-Department` /
+`X-User-Email` request headers, on the assumption a reverse proxy sets them, and
+the form switches to read-only so the booking is filed under the logged-in user.
+`X-User-Email` is optional but worth wiring up: free/busy is looked up by
+mailbox, so when the login carries the address the form stops asking for it and
+your own calendar appears on the schedule without anyone typing anything. Calling
 the existing `/checklogin` directly is still to be written, in
 `src/middleware/auth.js`. The frontend already handles both, keyed off the `mode`
 returned by `/api/auth/me`, so turning login on is a server-side change only.

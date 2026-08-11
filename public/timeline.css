@@ -506,6 +506,21 @@
 
 /* The search box and its suggestion list are one positioned unit, so the list
    hangs under the input instead of pushing the form down as it appears. */
+/* The signed-in mailbox, stated rather than asked for. Deliberately quieter
+   than an input: it is something already settled, not a field to fill in. */
+.me-fixed {
+  font-size: 13px;
+  color: #4b5a68;
+  background: #f6f9fd;
+  border: 1px solid #e2e9f1;
+  border-radius: 8px;
+  padding: 7px 10px;
+}
+.me-fixed strong {
+  color: #1f2d3a;
+  font-weight: 600;
+  word-break: break-all;
+}
 .people-pick {
   position: relative;
 }
