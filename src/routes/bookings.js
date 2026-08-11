@@ -47,6 +47,23 @@ function parseParticipants(text) {
   }
 }
 
+// Only the browser that made a booking may change or cancel it. Enforced on the
+// server rather than by hiding buttons, because a hidden button is not a rule.
+//
+// Two things are deliberately still allowed. A booking with no device recorded
+// — made before this rule, or from a script — is open to anyone, otherwise
+// nothing could ever clear it. And with a real login the server knows who is
+// asking, so the rule will belong to the user rather than the browser; until
+// that exists this applies to the no-login mode only.
+function notYours(req, existing, verb) {
+  const authed = req.user?.mode !== 'mock';
+  if (authed || !existing.device_id || existing.device_id === deviceOf(req)) return null;
+  return (
+    `This booking was made by ${existing.reserver} (${existing.department}) on ` +
+    `another computer, so it can only be ${verb} there.`
+  );
+}
+
 // Find a confirmed booking that overlaps [startAt, endAt) for the room.
 // Half-open interval: adjacent bookings (end == next start) do NOT overlap.
 function findOverlap(tx, roomId, startAt, endAt, excludeId = null) {
@@ -294,6 +311,11 @@ router.put('/:id', async (req, res, next) => {
       : null;
     if (!existing) return res.status(404).json({ error: 'Booking not found.' });
 
+    // Changing someone else's booking is as much of a problem as cancelling it
+    // — arguably worse, since it moves rather than removes and nobody is told.
+    const denied = notYours(req, existing, 'changed');
+    if (denied) return res.status(403).json({ error: denied });
+
     const body = req.body || {};
     const roomId = body.room_id !== undefined ? parseInt(body.room_id, 10) : existing.room_id;
     const department =
@@ -361,20 +383,8 @@ router.delete('/:id', async (req, res, next) => {
       : null;
     if (!existing) return res.status(404).json({ error: 'Booking not found.' });
 
-    // Only the browser that made a booking may cancel it. Enforced here rather
-    // than by hiding the button, because a hidden button is not a rule.
-    //
-    // Two things are deliberately still allowed. A booking with no device
-    // recorded — made before this rule, or from a script — can be cancelled by
-    // anyone, otherwise nothing could ever clear it. And with a real login the
-    // server knows who is asking, so the rule will belong to the user rather than
-    // the browser; until that exists this applies to the no-login mode only.
-    const authed = req.user?.mode !== 'mock';
-    if (!authed && existing.device_id && existing.device_id !== deviceOf(req)) {
-      return res.status(403).json({
-        error: `This booking was made by ${existing.reserver} (${existing.department}) on another computer, so it can only be cancelled there.`,
-      });
-    }
+    const denied = notYours(req, existing, 'cancelled');
+    if (denied) return res.status(403).json({ error: denied });
 
     await prisma.bookings.update({
       where: { id },

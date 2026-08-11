@@ -18,6 +18,7 @@
         <a class="nav-link" href="/stats.html">Analytics</a>
       </div>
       <div class="d-flex align-items-center gap-3">
+        <button type="button" class="nav-btn" id="myBookingsBtn">My bookings<span class="n" id="myCount" hidden></span></button>
         <span class="small" style="color:rgba(255,255,255,.55)" id="appVersion"></span>
         <div class="user-chip" id="currentUser" hidden>
           <div class="avatar" id="userInitials"></div>
@@ -41,6 +42,10 @@
           </div>
           <div class="card-body p-3">
             <div id="formAlert"></div>
+            <div class="edit-banner" id="editBanner" hidden>
+              Changing an existing booking.
+              <button type="button" class="btn-link-plain" id="editCancel">Start a new one instead</button>
+            </div>
             <form id="bookingForm">
               <!-- Step 1: who is coming. Their calendars appear on the schedule
                    so the time can be chosen around them. -->
@@ -91,7 +96,15 @@
                 <span class="num">3</span><span class="ttl">Which room</span>
                 <span class="badge-free" id="freeCount"></span>
               </div>
-              <div class="panel-sub mb-2">Only rooms free for this time are listed.</div>
+              <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                <span class="panel-sub">Only rooms free for this time are listed.</span>
+                <label class="seats-filter" id="seatsWrap" hidden>
+                  <span>For</span>
+                  <select class="form-select form-select-sm" id="seats">
+                    <option value="">any size</option>
+                  </select>
+                </label>
+              </div>
               <select class="form-select mb-1" id="roomId" required disabled>
                 <option value="">Select a date and time</option>
               </select>
@@ -149,6 +162,16 @@
           </div>
 
           <div class="fb-note" id="fbNote" hidden></div>
+          <!-- The walk-up case: someone needs a room now and does not want to
+               fill in a form to find out which. Only shown while looking at
+               today, since "now" means nothing on another day. -->
+          <div class="freenow" id="freeNow" hidden>
+            <div class="fn-head">
+              <span class="fn-title">Free right now</span>
+              <div class="fn-durs" id="freeNowDurs"></div>
+            </div>
+            <div class="fn-list" id="freeNowList"></div>
+          </div>
           <div id="timeline" class="timeline"></div>
           <p class="panel-foot panel-sub mb-0" id="tlRangeNote"></p>
         </div>
@@ -168,6 +191,22 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
           <button type="button" class="btn btn-danger" id="detailCancel">Cancel Booking</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Your own bookings, wherever they are in the calendar -->
+  <div class="modal fade" id="myModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">My bookings</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="myBody"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
         </div>
       </div>
     </div>

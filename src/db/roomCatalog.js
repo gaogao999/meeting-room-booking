@@ -12,6 +12,12 @@
 // The order here is the order everything shows in - the sites down the page and
 // the rooms within a site. Neither is alphabetical, because neither is how
 // anyone thinks about the building.
+//
+// capacity and description are unset for now. Fill either in and it appears by
+// itself: under the room name on the schedule, beside it in the room list, and
+// as a "for N people" filter that stays hidden until at least one room has a
+// capacity. Nothing else has to change.
+//   { name: 'Training Room', location: 'Bang Na', capacity: 30, description: 'Projector' },
 const ROOMS = [
   // Bang Na
   { name: 'Training Room', location: 'Bang Na', capacity: null, description: null },
