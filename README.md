@@ -3,7 +3,7 @@
 Web app for booking company meeting rooms. Pick a date and time and only the rooms
 free for that slot show up; the whole company's schedule is visible on a timeline.
 
-Current version: v2.5.0. UI is in English.
+Current version: v2.5.1. UI is in English.
 
 The version shown in the app header comes from `package.json`, so bump it there
 when releasing — it's how you confirm which build is actually deployed.
@@ -28,6 +28,12 @@ when releasing — it's how you confirm which build is actually deployed.
 - A booking can carry the people invited and a meeting link, and
   `Add to Outlook` downloads it as a calendar appointment (`.ics`) so it does not
   have to be typed in twice.
+- Booking with people invited opens a mail to them, filled in with the room,
+  time, join link and a link to the calendar file. It opens the mail client the
+  user is already signed in to rather than sending from the server: sending
+  server-side needs the company mail server and so needs IT, while this needs
+  nothing, goes out from the person's own address, and leaves a copy in their
+  Sent items. A `mailto:` cannot carry an attachment, hence the link.
 - `Free right now` — the top of the schedule lists the rooms free from this
   minute and for how long, for 30 minutes / 1 hour / 2 hours. One click fills the
   form in with that room and time. This is the walk-up case: somebody in the
