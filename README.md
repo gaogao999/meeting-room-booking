@@ -3,7 +3,7 @@
 Web app for booking company meeting rooms. Pick a date and time and only the rooms
 free for that slot show up; the whole company's schedule is visible on a timeline.
 
-Current version: v2.4.2. UI is in English.
+Current version: v2.5.0. UI is in English.
 
 The version shown in the app header comes from `package.json`, so bump it there
 when releasing — it's how you confirm which build is actually deployed.
@@ -28,6 +28,22 @@ when releasing — it's how you confirm which build is actually deployed.
 - A booking can carry the people invited and a meeting link, and
   `Add to Outlook` downloads it as a calendar appointment (`.ics`) so it does not
   have to be typed in twice.
+- `Free right now` — the top of the schedule lists the rooms free from this
+  minute and for how long, for 30 minutes / 1 hour / 2 hours. One click fills the
+  form in with that room and time. This is the walk-up case: somebody in the
+  corridor who needs a room now, which is the thing Outlook handles worst.
+- A line across the grid marks the current minute, and both it and the free-now
+  list refresh every minute so a screen left open all morning stays honest.
+- `My bookings` lists everything this browser has booked that has not happened
+  yet — the only way to find one without knowing its date, since bookings are
+  identified by device rather than by login. Each can be changed, cancelled, or
+  added to a calendar from there.
+- A booking can be changed rather than cancelled and re-made, which used to lose
+  the room in the gap. The same device rule covers changing and cancelling: only
+  the browser that made a booking can do either.
+- Room capacity and description are shown wherever a room is named, and a
+  "for N people" filter appears once at least one room has a capacity set. Both
+  are empty in the catalog for now; filling them in is all that is needed.
 - Booking window differs by department: HR (`GA.HR`) can book up to 6 months out
   (180 days), everyone else up to 3 months (90 days).
 - No double-booking — the overlap check and the insert happen in one transaction

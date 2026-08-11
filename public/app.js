@@ -35,7 +35,15 @@ const state = {
   freeBusy: {},
   fbMode: 'sample',
   fbError: null,
+  // Set while changing an existing booking rather than making a new one.
+  editing: null,
+  // How long the "free right now" strip is looking ahead for, in minutes.
+  freeNowMins: 30,
 };
+
+// Recompute "now" this often, so the current-time line and the free-now strip
+// do not go stale on a screen left open all morning.
+const NOW_TICK_MS = 60 * 1000;
 
 let detailModal = null;
 
@@ -92,6 +100,35 @@ function showAlert(message, type = 'danger', { html = false } = {}) {
     `<div class="alert alert-${type} alert-dismissible fade show" role="alert">${
       html ? message : escapeHtml(message)
     }<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`;
+}
+
+// Rooms carry a capacity and a description in the catalog, both of which start
+// empty here. Everything below has to read well with nothing set, and get more
+// useful the moment IT or the office fills them in — no code change either way.
+function seatsOf(room) {
+  return Number.isFinite(room && room.capacity) ? room.capacity : null;
+}
+
+function anyCapacityKnown() {
+  return state.rooms.some((r) => seatsOf(r) != null);
+}
+
+// "8 seats · TV, VC" — whichever of the two is known.
+function roomFacts(room) {
+  const bits = [];
+  const seats = seatsOf(room);
+  if (seats != null) bits.push(`${seats} seats`);
+  if (room.description) bits.push(room.description);
+  return bits.join(' · ');
+}
+
+// A room fits when it is big enough, or when nobody has said how big it is:
+// an unknown capacity is not evidence that it is too small, and excluding
+// those would empty the list entirely until the catalog is filled in.
+function fitsSeats(room, wanted) {
+  if (!wanted) return true;
+  const seats = seatsOf(room);
+  return seats == null || seats >= wanted;
 }
 
 function visibleRooms() {
@@ -210,6 +247,22 @@ function attendees() {
     ? [{ name: document.getElementById('reserver').value.trim() || 'You', email: mine, self: true }]
     : [];
   return [...own, ...state.participants];
+}
+
+// Offered sizes are drawn from the catalog, so the choices are ones that can
+// actually be met. With no capacities set the whole control stays hidden rather
+// than presenting a filter that cannot filter.
+function fillSeatOptions() {
+  const wrap = document.getElementById('seatsWrap');
+  if (!anyCapacityKnown()) {
+    wrap.hidden = true;
+    return;
+  }
+  const sizes = [...new Set(state.rooms.map(seatsOf).filter((n) => n != null))].sort((a, b) => a - b);
+  document.getElementById('seats').innerHTML =
+    '<option value="">any size</option>' +
+    sizes.map((n) => `<option value="${n}">${n}+ people</option>`).join('');
+  wrap.hidden = false;
 }
 
 function fillDepartments(list, selected) {
@@ -436,13 +489,16 @@ function updateBookButton() {
   // Without a login the department and name are all that identify a booking,
   // so neither can be left to a default.
   btn.disabled = !room || !department || !reserver;
+  const range = `${fmtMin(timeMin('startHour', 'startMin'))}–${fmtMin(timeMin('endHour', 'endMin'))}`;
   btn.textContent = !room
     ? 'Select a room first'
     : !department
       ? 'Select your department'
       : !reserver
         ? 'Enter your name'
-        : `Book ${room.name} · ${fmtMin(timeMin('startHour', 'startMin'))}–${fmtMin(timeMin('endHour', 'endMin'))}`;
+        : state.editing
+          ? `Save changes · ${room.name} · ${range}`
+          : `Book ${room.name} · ${range}`;
 }
 
 // ---- Step 1+2: find available rooms for the chosen time slot ----
@@ -478,14 +534,24 @@ async function findRooms(preselectRoomId = null) {
     const data = await api(
       `/api/availability?start_at=${date}T${startStr}&end_at=${date}T${endStr}`
     );
-    // Respect the location filter so the dropdown matches the schedule below
-    const available =
-      state.locFilter === 'All'
-        ? data.available
-        : data.available.filter((r) => (r.location || 'Other') === state.locFilter);
+    // The room this booking already holds is "taken" by this very booking, so
+    // it would otherwise disappear from the list the moment you tried to edit
+    // anything else about it.
+    if (state.editing) {
+      const held = state.rooms.find((r) => r.id === state.editing.room_id);
+      if (held && !data.available.some((r) => r.id === held.id)) data.available.push(held);
+    }
+    // Respect the location filter so the dropdown matches the schedule below,
+    // and the size filter if the catalog knows how big the rooms are.
+    const wanted = +document.getElementById('seats').value || 0;
+    const available = data.available
+      .filter((r) => state.locFilter === 'All' || (r.location || 'Other') === state.locFilter)
+      .filter((r) => fitsSeats(r, wanted));
 
     if (available.length === 0) {
-      hint.textContent = `No rooms available for ${fmtClock(startStr)}–${fmtClock(endStr)}.`;
+      hint.textContent = wanted
+        ? `No rooms for ${wanted} people free at ${fmtClock(startStr)}–${fmtClock(endStr)}.`
+        : `No rooms available for ${fmtClock(startStr)}–${fmtClock(endStr)}.`;
       reset('No rooms available');
       return;
     }
@@ -501,7 +567,12 @@ async function findRooms(preselectRoomId = null) {
           (loc) =>
             `<optgroup label="${escapeHtml(loc)}">` +
             groups[loc]
-              .map((r) => `<option value="${r.id}">${escapeHtml(r.name)}</option>`)
+              .map((r) => {
+                const facts = roomFacts(r);
+                return `<option value="${r.id}">${escapeHtml(
+                  facts ? `${r.name} — ${facts}` : r.name
+                )}</option>`;
+              })
               .join('') +
             '</optgroup>'
         )
@@ -545,15 +616,20 @@ async function submitBooking(ev) {
     end_at: `${date}T${timeStr('endHour', 'endMin')}`,
   };
   try {
-    const created = await api('/api/bookings', { method: 'POST', body: JSON.stringify(payload) });
-    // The booking is made; the next thing anyone wants is it in their own
+    const editing = state.editing;
+    const saved = editing
+      ? await api(`/api/bookings/${editing.id}`, { method: 'PUT', body: JSON.stringify(payload) })
+      : await api('/api/bookings', { method: 'POST', body: JSON.stringify(payload) });
+    // The booking exists; the next thing anyone wants is it in their own
     // calendar, so offer that here rather than making them find the booking
     // again to get at it.
     showAlert(
-      `Reservation created. <a class="alert-link" href="/api/bookings/${created.id}/ics">Add to Outlook</a>`,
+      `${editing ? 'Booking updated' : 'Reservation created'}. ` +
+        `<a class="alert-link" href="/api/bookings/${saved.id}/ics">Add to Outlook</a>`,
       'success',
       { html: true }
     );
+    setEditing(null);
     rememberCurrent();
     document.getElementById('purpose').value = '';
     document.getElementById('meetingUrl').value = '';
@@ -564,6 +640,104 @@ async function submitBooking(ev) {
   } catch (err) {
     showAlert(err.message, 'danger');
   }
+}
+
+// ---- Right now -------------------------------------------------------------
+//
+// Someone standing in the corridor wanting a room for the next half hour should
+// not have to fill in a form to find out which ones are free. This is the case
+// Outlook handles worst and this screen handles best, so it gets the top of the
+// page — but only while looking at today, because "now" means nothing on any
+// other day.
+
+function nowMinutes() {
+  const d = new Date();
+  return d.getHours() * 60 + d.getMinutes();
+}
+
+function isToday() {
+  return state.date === todayStr();
+}
+
+// For each room the schedule is showing: is it free from now, and until when.
+// `bookings` is the same per-room map the timeline draws from, so this costs
+// nothing extra and can never disagree with the grid below it.
+function freeNowRooms(bookingsByRoom) {
+  const slot = state.config.slotMinutes;
+  const from = Math.max(DAY_START, Math.ceil(nowMinutes() / slot) * slot);
+  if (from >= DAY_END) return { from, rooms: [] };
+
+  const rooms = [];
+  for (const room of visibleRooms()) {
+    let until = DAY_END;
+    for (const b of bookingsByRoom[room.id] || []) {
+      const s = minutesOfDay(b.start_at, state.date);
+      const e = minutesOfDay(b.end_at, state.date);
+      if (s == null || e == null) continue;
+      if (e <= from) continue;
+      // Busy at this very moment — not free, whatever comes later.
+      if (s <= from) { until = from; break; }
+      until = Math.min(until, s);
+    }
+    if (until - from >= state.freeNowMins) rooms.push({ room, until });
+  }
+  return { from, rooms };
+}
+
+function renderFreeNow(bookingsByRoom) {
+  const box = document.getElementById('freeNow');
+  if (!isToday() || nowMinutes() >= DAY_END) {
+    box.hidden = true;
+    return;
+  }
+  const { from, rooms } = freeNowRooms(bookingsByRoom);
+  box.hidden = false;
+
+  const choices = [30, 60, 120];
+  document.getElementById('freeNowDurs').innerHTML = choices
+    .map(
+      (m) =>
+        `<button type="button" class="fn-dur${state.freeNowMins === m ? ' active' : ''}"` +
+        ` data-mins="${m}">${durText(m)}</button>`
+    )
+    .join('');
+
+  const list = document.getElementById('freeNowList');
+  if (!rooms.length) {
+    list.innerHTML =
+      `<span class="fn-none">Nothing free for ${durText(state.freeNowMins)} from ${fmtMin(from)}.</span>`;
+    return;
+  }
+  list.innerHTML = rooms
+    .map(({ room, until }) => {
+      const facts = roomFacts(room);
+      return (
+        `<button type="button" class="fn-room" data-room="${room.id}" data-from="${from}"` +
+        ` title="${escapeHtml(`Book ${room.name} from ${fmtMin(from)}`)}">` +
+        `<span class="fn-name">${escapeHtml(room.name)}</span>` +
+        `<span class="fn-meta">${escapeHtml(room.location || '')}${
+          facts ? ' · ' + escapeHtml(facts) : ''
+        }</span>` +
+        `<span class="fn-free">free ${until >= DAY_END ? 'all day' : 'until ' + fmtMin(until)}</span>` +
+        '</button>'
+      );
+    })
+    .join('');
+}
+
+// Take one of those rooms: today, from the next slot boundary, for the length
+// the strip is currently showing.
+function bookFromNow(roomId, from) {
+  const end = Math.min(DAY_END, from + state.freeNowMins);
+  document.getElementById('date').value = state.date;
+  document.getElementById('startHour').value = Math.floor(from / 60);
+  document.getElementById('startMin').value = from % 60;
+  document.getElementById('endHour').value = Math.floor(end / 60);
+  syncEndMinutes();
+  document.getElementById('endMin').value = end % 60;
+  state.selectedRoom = +roomId;
+  findRooms(roomId).then(loadTimeline);
+  document.getElementById('bookingForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ---- Timeline ----
@@ -717,6 +891,19 @@ function renderTimeline(bookingsByRoom) {
 
   const minWidth = ROOM_COL_PX + (SPAN / 60) * PX_PER_HOUR;
   let html = `<div class="tl-grid" style="min-width:${minWidth}px">`;
+  // One line down the whole grid marking this minute. Positioned against the
+  // track rather than the grid, so it lands on the same x as the bars do.
+  const now = nowMinutes();
+  if (isToday() && now >= DAY_START && now <= DAY_END) {
+    // The track starts after the sticky room column and fills the rest, so the
+    // line sits that far into what remains — expressed in CSS so it stays right
+    // when the grid is wider than the panel and scrolls.
+    const frac = ((now - DAY_START) / SPAN).toFixed(5);
+    html +=
+      `<div class="tl-nowline" style="left:calc(var(--tl-room-w) + (100% - var(--tl-room-w)) * ${frac})"` +
+      ` aria-hidden="true"><span class="tl-nowdot"></span>` +
+      `<span class="tl-nowtime">${fmtMin(now)}</span></div>`;
+  }
   html += `<div class="tl-row tl-head"><div class="tl-roomcell">Room</div><div class="tl-track">${headHours.join(
     ''
   )}</div></div>`;
@@ -775,7 +962,9 @@ function renderTimeline(bookingsByRoom) {
         // too small for the longest of them and the end is cut off.
         `<span class="tl-roomname" title="${escapeHtml(room.name)}">${escapeHtml(
           room.name
-        )}</span></div>` +
+        )}</span>` +
+        (roomFacts(room) ? `<span class="tl-roomfacts">${escapeHtml(roomFacts(room))}</span>` : '') +
+        '</div>' +
         `<div class="tl-track" data-room="${room.id}">${hourLines()}${renderFreeCells(
           room,
           list
@@ -815,6 +1004,8 @@ async function loadTimeline() {
     renderLocationFilters();
     const byRoom = {};
     for (const b of list) (byRoom[b.room_id] = byRoom[b.room_id] || []).push(b);
+    state.byRoom = byRoom;
+    renderFreeNow(byRoom);
     renderTimeline(byRoom);
   } catch (err) {
     document.getElementById('timeline').innerHTML =
@@ -891,6 +1082,101 @@ function startFromCell(roomId, startMin, endMin, shiftKey = false) {
   findRooms(roomId).then(loadTimeline);
 }
 
+// ---- Changing a booking, and finding your own ------------------------------
+//
+// Until now the only way to move a booking was to cancel it and make another,
+// which loses the room in between — someone else can take it in the gap.
+
+function setEditing(booking) {
+  state.editing = booking;
+  const banner = document.getElementById('editBanner');
+  banner.hidden = !booking;
+  if (booking) {
+    banner.firstChild.textContent =
+      `Changing ${booking.reserver}'s booking on ${fmtStamp(booking.start_at)}. `;
+  }
+  updateBookButton();
+}
+
+// Load a booking into the form so it can be adjusted and saved back.
+function editBooking(b) {
+  setEditing(b);
+  const date = b.start_at.slice(0, 10);
+  const s = minutesOfDay(b.start_at, date);
+  const e = minutesOfDay(b.end_at, date);
+  document.getElementById('date').value = date;
+  document.getElementById('tlDate').value = date;
+  document.getElementById('startHour').value = Math.floor(s / 60);
+  document.getElementById('startMin').value = s % 60;
+  document.getElementById('endHour').value = Math.floor(e / 60);
+  syncEndMinutes();
+  document.getElementById('endMin').value = e % 60;
+  document.getElementById('department').value = b.department;
+  document.getElementById('reserver').value = b.reserver;
+  document.getElementById('purpose').value = b.purpose || '';
+  document.getElementById('meetingUrl').value = b.meeting_url || '';
+  if (Array.isArray(b.participants) && b.participants.length) {
+    state.participants = b.participants.map((p) => ({ name: p.name, email: p.email }));
+    saveParticipants();
+    renderParticipants();
+  }
+  state.selectedRoom = b.room_id;
+  findRooms(b.room_id).then(loadTimeline);
+  document.getElementById('bookingForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+let myModal = null;
+
+// Everything this browser booked that has not happened yet. Bookings are
+// identified by device, so this is the only list of "mine" that exists without
+// a login — and the only way to find one without knowing its date.
+async function loadMyBookings() {
+  const body = document.getElementById('myBody');
+  body.innerHTML = '<div class="text-secondary">Loading…</div>';
+  try {
+    const now = new Date();
+    const from = `${todayStr()}T00:00`;
+    const ahead = new Date(now);
+    ahead.setDate(ahead.getDate() + state.config.windowHrDays + 1);
+    const to = `${ahead.getFullYear()}-${pad(ahead.getMonth() + 1)}-${pad(ahead.getDate())}T00:00`;
+    const rows = await api(`/api/bookings?from=${from}&to=${to}`);
+    const mine = rows.filter((b) => b.mine);
+    updateMyCount(mine.length);
+    if (!mine.length) {
+      body.innerHTML =
+        '<div class="text-secondary">Nothing booked from this computer yet.<br>' +
+        'Bookings are remembered per computer, so one made elsewhere will not appear here.</div>';
+      return;
+    }
+    body.innerHTML =
+      '<div class="mine-list">' +
+      mine
+        .map(
+          (b) =>
+            `<div class="mine-row" data-booking='${escapeHtml(JSON.stringify(b))}'>` +
+            `<div class="m-when"><b>${escapeHtml(fmtStamp(b.start_at))}</b>` +
+            `<span>–${escapeHtml(fmtClock(b.end_at.slice(11, 16)))}</span></div>` +
+            `<div class="m-what"><b>${escapeHtml(b.room_name)}</b>` +
+            `<span>${escapeHtml(b.purpose || b.department)}</span></div>` +
+            '<div class="m-act">' +
+            `<button type="button" class="btn btn-sm btn-outline-primary" data-act="edit">Change</button>` +
+            `<a class="btn btn-sm btn-outline-secondary" href="/api/bookings/${b.id}/ics">Calendar</a>` +
+            `<button type="button" class="btn btn-sm btn-outline-danger" data-act="cancel">Cancel</button>` +
+            '</div></div>'
+        )
+        .join('') +
+      '</div>';
+  } catch (err) {
+    body.innerHTML = `<div class="text-danger">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function updateMyCount(n) {
+  const el = document.getElementById('myCount');
+  el.hidden = !n;
+  el.textContent = n || '';
+}
+
 // ---- Booking detail modal ----
 function openDetail(b) {
   state.detailBooking = b;
@@ -928,7 +1214,16 @@ function openDetail(b) {
       <dt class="col-4">Purpose</dt><dd class="col-8">${escapeHtml(b.purpose || '-')}</dd>
       ${people}${link}
     </dl>
-    <a class="btn btn-outline-primary btn-sm" href="/api/bookings/${b.id}/ics">Add to Outlook</a>`;
+    <a class="btn btn-outline-primary btn-sm" href="/api/bookings/${b.id}/ics">Add to Outlook</a>` +
+    (b.mine
+      ? ' <button type="button" class="btn btn-outline-secondary btn-sm" id="detailEdit">Change this booking</button>'
+      : '');
+  if (b.mine) {
+    document.getElementById('detailEdit').addEventListener('click', () => {
+      detailModal.hide();
+      editBooking(b);
+    });
+  }
   detailModal.show();
 }
 
@@ -983,6 +1278,51 @@ async function init() {
   document.getElementById('tlDate').addEventListener('change', refreshFreeBusy);
 
   // Participants
+  document.getElementById('seats').addEventListener('change', () => findRooms().then(loadTimeline));
+  document.getElementById('editCancel').addEventListener('click', () => {
+    setEditing(null);
+    findRooms();
+  });
+
+  // "Free right now": pick a length, or take a room straight from the strip.
+  document.getElementById('freeNowDurs').addEventListener('click', (e) => {
+    const btn = e.target.closest('.fn-dur');
+    if (!btn) return;
+    state.freeNowMins = +btn.getAttribute('data-mins');
+    renderFreeNow(state.byRoom || {});
+  });
+  document.getElementById('freeNowList').addEventListener('click', (e) => {
+    const btn = e.target.closest('.fn-room');
+    if (btn) bookFromNow(btn.getAttribute('data-room'), +btn.getAttribute('data-from'));
+  });
+
+  // Your own bookings
+  myModal = new bootstrap.Modal(document.getElementById('myModal'));
+  document.getElementById('myBookingsBtn').addEventListener('click', () => {
+    myModal.show();
+    loadMyBookings();
+  });
+  document.getElementById('myBody').addEventListener('click', async (e) => {
+    const act = e.target.closest('[data-act]');
+    if (!act) return;
+    const b = JSON.parse(act.closest('.mine-row').getAttribute('data-booking'));
+    if (act.getAttribute('data-act') === 'edit') {
+      myModal.hide();
+      editBooking(b);
+      return;
+    }
+    const when = `${fmtStamp(b.start_at)}\u2013${fmtClock(b.end_at.slice(11, 16))}`;
+    if (!confirm(`Cancel your booking?\n\n${b.room_name}  ${when}`)) return;
+    try {
+      await api(`/api/bookings/${b.id}`, { method: 'DELETE' });
+      loadMyBookings();
+      loadTimeline();
+      findRooms();
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
   document.getElementById('myEmail').addEventListener('change', () => {
     rememberCurrent();
     refreshFreeBusy();
@@ -1074,10 +1414,21 @@ async function init() {
 
     fillTimeControls();
     updateRuleHint();
+    // The line marking now, and what is free from now, both go stale on a
+    // screen nobody has touched since the morning.
+    setInterval(() => {
+      if (isToday()) {
+        renderFreeNow(state.byRoom || {});
+        renderTimeline(state.byRoom || {});
+      }
+    }, NOW_TICK_MS);
     state.participants = loadParticipants();
     renderParticipants();
     await loadTimeline();
+    // After the rooms are in: the size filter is built from their capacities.
+    fillSeatOptions();
     findRooms();
+    loadMyBookings().catch(() => {});
     // Calendars are fetched after the schedule is on screen: the room grid is
     // the part that must not wait on Microsoft answering.
     if (attendees().length) refreshFreeBusy();
