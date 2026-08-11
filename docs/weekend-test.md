@@ -106,7 +106,9 @@ https://entra.microsoft.com を開く。
 2. できた画面の**概要**に出ている
    **アプリケーション (クライアント) ID** と **ディレクトリ (テナント) ID** を控える。
 3. **APIのアクセス許可** → アクセス許可の追加 → Microsoft Graph →
-   **アプリケーションの許可** → `Calendars.Read` を選ぶ。
+   **アプリケーションの許可** → `Calendars.ReadBasic` を選ぶ。
+   無い場合や動かない場合は `Calendars.Read`。
+   （Microsoft の資料で必要権限の記述が2箇所で食い違っている。弱い方から試す）
    - ここで「委任された許可」を選ぶと動かない。**アプリケーションの許可**の方。
    - 追加したら **「(テナント名) に管理者の同意を与えます」** を押す。
      緑のチェックが付けば完了。
@@ -190,17 +192,37 @@ M365 の管理センターで、**ライセンスを割り当てないユーザ�
 
 ### 6-4. 対象を絞る設定を実際にかける
 
-IT に依頼する予定の設定を、自分のテナントで先に試しておく。
-Exchange Online PowerShell で:
+既定では、承認した権限が**全社員のカレンダー**に及ぶ。特定の人だけに絞る設定が
+あり、IT に依頼する予定のものを自分のテナントで先に試しておく。
+
+現在の方法は **RBAC for Applications**。以前からある
+`New-ApplicationAccessPolicy` はレガシー扱いで、Microsoft は新規に使わないよう
+案内している（いずれ移行が必要になる）。
+
+Exchange Online PowerShell で、対象にしたい人の範囲を作り、アプリに割り当てる:
 
 ```powershell
-New-ApplicationAccessPolicy -AppId <クライアントID> `
-  -PolicyScopeGroupId <グループのアドレス> -AccessRight RestrictAccess `
-  -Description "Meeting room booking app"
+Connect-ExchangeOnline
+
+# 1. 対象範囲をつくる（例: 部署が QA の人だけ）
+New-ManagementScope -Name "QA staff" -RecipientRestrictionFilter "Department -eq 'QA'"
+
+# 2. アプリを Exchange 側に登録する
+New-ServicePrincipal -AppId <クライアントID> -ObjectId <エンタープライズ アプリケーションのオブジェクトID>
+
+# 3. その範囲にだけ権限を割り当てる
+New-ManagementRoleAssignment -App <上のサービスプリンシパル> `
+  -Role "Application Calendars.Read" -CustomResourceScope "QA staff"
+
+# 4. 効いているか確かめる
+Test-ServicePrincipalAuthorization -Identity <クライアントID> -Resource <誰かのアドレス>
 ```
 
-かけたあと、グループ外の人を招待すると読めなくなる。
+かけたあと、範囲外の人を招待すると読めなくなる。
 **この挙動を自分の目で見ておくと、IT との会話が具体的になる。**
+
+> 設定の反映には時間がかかることがある（レガシー側は最大1時間以上）。
+> すぐ効かなくても、しばらく待ってから試すこと。
 
 ### 6-5. 時計をわざとずらす
 

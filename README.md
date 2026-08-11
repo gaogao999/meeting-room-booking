@@ -3,7 +3,7 @@
 Web app for booking company meeting rooms. Pick a date and time and only the rooms
 free for that slot show up; the whole company's schedule is visible on a timeline.
 
-Current version: v2.4.1. UI is in English.
+Current version: v2.4.2. UI is in English.
 
 The version shown in the app header comes from `package.json`, so bump it there
 when releasing — it's how you confirm which build is actually deployed.
@@ -143,11 +143,21 @@ That is IT's to grant; there is no way around it, and no partial version of it.
 What IT needs to do, once:
 
 1. Register an application in Azure AD.
-2. Grant it the **application** permission `Calendars.Read`, and consent as
-   administrator. This returns free/busy times only — not what the meetings are.
-3. Optionally also `User.Read.All`, which is what lets the search box find people
+2. Grant it the **application** permission `Calendars.ReadBasic`, and consent as
+   administrator — falling back to `Calendars.Read` if that does not work.
+   (Microsoft's own pages disagree on which is the minimum: the getSchedule API
+   reference says ReadBasic, the free/busy article says Read. Ask for the
+   weaker one first.) Either way this returns free/busy times only, not what
+   the meetings are.
+3. Scope it to a set of mailboxes rather than the whole company, using
+   [RBAC for Applications](https://learn.microsoft.com/exchange/permissions-exo/application-rbac)
+   (`New-ManagementScope` + `New-ManagementRoleAssignment -CustomResourceScope`).
+   Microsoft's own example for this feature is a room booking system, which is
+   worth quoting when asking. Do not use `New-ApplicationAccessPolicy`: it does
+   the same job but is legacy and slated for deprecation.
+4. Optionally also `User.Read.All`, which is what lets the search box find people
    by name. Without it the feature still works; an address has to be typed out.
-4. Hand over the tenant id, client id and client secret, plus any one mailbox for
+5. Hand over the tenant id, client id and client secret, plus any one mailbox for
    `GRAPH_ORGANIZER` — application calls have no "me", so the lookup is made
    through a named mailbox.
 
@@ -167,8 +177,21 @@ Two limits worth knowing before promising anything:
 - Someone with no Outlook mailbox has no free/busy to read. They can still be
   invited and still appear on the booking; their row is simply blank.
 - This reads calendars. It does not send meeting invitations and does not create
-  Teams links — both need more than `Calendars.Read`, and Outlook already does
+  Teams links — both need more than free/busy access, and Outlook already does
   them. `Add to Outlook` covers the common case without needing anything from IT.
+- getSchedule takes at most 20 mailboxes per call and a window of less than 62
+  days, which is why the participant list is capped at 20 and one day is fetched
+  at a time.
+
+Writing bookings into Outlook — so that a booking made here shows up in Outlook
+and one made in Outlook shows up here — is a further step, not done. The shape it
+would take is the one Exchange already provides: the rooms become room mailboxes,
+and a booking invites the room as an attendee, which Exchange accepts or declines
+against the room's own calendar. That means Exchange does the double-booking
+check rather than this app. It needs `Calendars.ReadWrite`, scoped to the room
+mailboxes. Note that Outlook-side changes could not be pushed here: Graph's
+change notifications require a notification URL reachable from the public
+internet, which an internal server is not, so it would have to poll.
 
 ## Authentication
 
