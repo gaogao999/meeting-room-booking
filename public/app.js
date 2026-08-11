@@ -623,12 +623,22 @@ async function submitBooking(ev) {
     // The booking exists; the next thing anyone wants is it in their own
     // calendar, so offer that here rather than making them find the booking
     // again to get at it.
+    const hasPeople = (saved.participants || []).length > 0;
     showAlert(
       `${editing ? 'Booking updated' : 'Reservation created'}. ` +
-        `<a class="alert-link" href="/api/bookings/${saved.id}/ics">Add to Outlook</a>`,
+        `<a class="alert-link" href="/api/bookings/${saved.id}/ics">Add to Outlook</a>` +
+        (hasPeople
+          ? ` · <a class="alert-link" href="${escapeHtml(bookingMail(saved))}">Email the ${
+              saved.participants.length
+            } people invited</a>`
+          : ''),
       'success',
       { html: true }
     );
+    // Straight into the mail with everything filled in — but only when somebody
+    // was invited, since opening an empty message after every booking would be
+    // an interruption rather than a help. The link above re-opens it.
+    openBookingMail(saved);
     setEditing(null);
     rememberCurrent();
     document.getElementById('purpose').value = '';
@@ -1082,6 +1092,42 @@ function startFromCell(roomId, startMin, endMin, shiftKey = false) {
   findRooms(roomId).then(loadTimeline);
 }
 
+// ---- Telling the people you invited ----------------------------------------
+//
+// Sending mail from the server needs the company mail server, which needs IT.
+// Opening the mail the user is already signed in to needs nothing, sends from
+// their own address, and leaves a copy in their Sent items — so that is what
+// this does. The calendar file is linked rather than attached, because a
+// mailto: cannot carry an attachment.
+
+function bookingMail(b) {
+  const to = (b.participants || []).map((p) => p.email).join(',');
+  const date = b.start_at.slice(0, 10);
+  const when = `${dayLabel(date)}, ${fmtClock(b.start_at.slice(11, 16))}\u2013${fmtClock(
+    b.end_at.slice(11, 16)
+  )}`;
+  const lines = [
+    `When:  ${when}`,
+    `Where: ${b.room_name}`,
+  ];
+  if (b.meeting_url) lines.push(`Join:  ${b.meeting_url}`);
+  lines.push('', `Add it to your calendar: ${location.origin}/api/bookings/${b.id}/ics`);
+  lines.push('', `Booked by ${b.reserver} (${b.department})`);
+
+  const subject = b.purpose ? `Meeting: ${b.purpose}` : `Meeting room booked \u2014 ${b.room_name}`;
+  return (
+    `mailto:${encodeURIComponent(to)}` +
+    `?subject=${encodeURIComponent(subject)}` +
+    `&body=${encodeURIComponent(lines.join('\r\n'))}`
+  );
+}
+
+function openBookingMail(b) {
+  if (!(b.participants || []).length) return false;
+  location.href = bookingMail(b);
+  return true;
+}
+
 // ---- Changing a booking, and finding your own ------------------------------
 //
 // Until now the only way to move a booking was to cancel it and make another,
@@ -1215,6 +1261,11 @@ function openDetail(b) {
       ${people}${link}
     </dl>
     <a class="btn btn-outline-primary btn-sm" href="/api/bookings/${b.id}/ics">Add to Outlook</a>` +
+    ((b.participants || []).length
+      ? ` <a class="btn btn-outline-primary btn-sm" href="${escapeHtml(
+          bookingMail(b)
+        )}">Email participants</a>`
+      : '') +
     (b.mine
       ? ' <button type="button" class="btn btn-outline-secondary btn-sm" id="detailEdit">Change this booking</button>'
       : '');
