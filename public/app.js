@@ -1403,6 +1403,26 @@ async function init() {
   document.getElementById('tlDate').addEventListener('change', refreshFreeBusy);
 
   // Participants
+  // The browser's own complaint about a bad URL is "Please enter a URL", which
+  // does not say what is wrong with the one that was pasted. Say it properly,
+  // in the same words the server would use if it got this far.
+  const meetingUrl = document.getElementById('meetingUrl');
+  meetingUrl.addEventListener('input', () => {
+    const value = meetingUrl.value.trim();
+    let bad = '';
+    if (value) {
+      try {
+        const u = new URL(value);
+        if (u.protocol !== 'https:' && u.protocol !== 'http:') bad = 'https';
+      } catch (err) {
+        bad = 'url';
+      }
+    }
+    meetingUrl.setCustomValidity(
+      bad ? 'Paste the whole link, starting with https:// — for example https://teams.microsoft.com/…' : ''
+    );
+  });
+
   document.getElementById('seats').addEventListener('change', () => findRooms().then(loadTimeline));
   document.getElementById('editCancel').addEventListener('click', () => {
     setEditing(null);

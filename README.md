@@ -3,7 +3,7 @@
 Web app for booking company meeting rooms. Pick a date and time and only the rooms
 free for that slot show up; the whole company's schedule is visible on a timeline.
 
-Current version: v2.6.0. UI is in English.
+Current version: v2.6.1. UI is in English.
 
 The version shown in the app header comes from `package.json`, so bump it there
 when releasing — it's how you confirm which build is actually deployed.
@@ -69,6 +69,11 @@ when releasing — it's how you confirm which build is actually deployed.
   correctly, including non-ASCII department names.
 - Bookings and the schedule are limited to business hours (8:00–20:00 by
   default), enforced server-side too, not just in the form.
+- A booking may start in the slot currently in progress. "No bookings in the
+  past" counts from the top of that slot rather than from this second, because
+  taking a room from `Free right now` at 13:29 offers 13:30 and filling the form
+  in used to push it into the past — a refusal for something the user did
+  nothing wrong in.
 
 ## Tech stack
 
@@ -84,7 +89,14 @@ when releasing — it's how you confirm which build is actually deployed.
 - Config/secrets in `.env`
 
 Runtime dependencies are `express`, `dotenv` and `@prisma/client`. The only
-outbound connection the app makes is to the database.
+outbound connection the app makes is to the database, and to Microsoft Graph
+when the calendar integration is configured.
+
+Text arriving from a browser has control characters removed before it is stored,
+and the calendar file escapes its own output as well. Neither is about HTML —
+that is handled where it is rendered — but about a stray carriage return in a
+name turning one line of an `.ics` file into two, which a lenient calendar client
+would read as a property nobody wrote.
 
 ## Setup
 

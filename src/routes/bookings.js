@@ -8,6 +8,7 @@ const {
   checkLengths,
   normalizeParticipants,
   checkMeetingUrl,
+  stripControl,
 } = require('../services/bookingRules');
 const { buildIcs } = require('../services/calendarFile');
 
@@ -242,9 +243,9 @@ router.post('/', async (req, res, next) => {
     // mode there is no login, so an empty field must fail rather than quietly
     // file the booking under a placeholder name.
     const authed = req.user?.mode !== 'mock';
-    const department = (body.department || (authed ? req.user?.department : '') || '').trim();
-    const reserver = (body.reserver || (authed ? req.user?.name : '') || '').trim();
-    const purpose = body.purpose ? String(body.purpose).trim() : null;
+    const department = stripControl(body.department || (authed ? req.user?.department : '') || '').trim();
+    const reserver = stripControl(body.reserver || (authed ? req.user?.name : '') || '').trim();
+    const purpose = body.purpose ? stripControl(body.purpose).trim() : null;
 
     if (!Number.isFinite(roomId)) {
       return res.status(400).json({ error: 'Please select a room.' });
@@ -319,10 +320,10 @@ router.put('/:id', async (req, res, next) => {
     const body = req.body || {};
     const roomId = body.room_id !== undefined ? parseInt(body.room_id, 10) : existing.room_id;
     const department =
-      body.department !== undefined ? String(body.department).trim() : existing.department;
+      body.department !== undefined ? stripControl(body.department).trim() : existing.department;
     const reserver =
-      body.reserver !== undefined ? String(body.reserver).trim() : existing.reserver;
-    const purpose = body.purpose !== undefined ? body.purpose : existing.purpose;
+      body.reserver !== undefined ? stripControl(body.reserver).trim() : existing.reserver;
+    const purpose = body.purpose !== undefined ? stripControl(body.purpose) : existing.purpose;
     const startAt = body.start_at !== undefined ? body.start_at : existing.start_at;
     const endAt = body.end_at !== undefined ? body.end_at : existing.end_at;
 

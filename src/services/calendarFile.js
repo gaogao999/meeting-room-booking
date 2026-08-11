@@ -12,13 +12,18 @@
 
 const PRODID = '-//Meeting Room Booking//EN';
 
-// Escape the four characters that mean something in a property value.
+// Escape the four characters that mean something in a property value, and put
+// beyond doubt that nothing in the text can end a line. A bare carriage return
+// is the one that matters: a strict parser splits on CRLF and ignores it, a
+// lenient one treats it as a break and reads what follows as a new property.
+// Every other control character goes, for the same reason.
 function esc(text) {
   return String(text || '')
     .replace(/\\/g, '\\\\')
     .replace(/;/g, '\\;')
     .replace(/,/g, '\\,')
-    .replace(/\r?\n/g, '\\n');
+    .replace(/\r\n|\r|\n/g, '\\n')
+    .replace(/[\u0000-\u001f\u007f-\u009f]/g, '');
 }
 
 // Content lines are limited to 75 octets; longer ones continue on the next line
