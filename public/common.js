@@ -5,8 +5,15 @@
 // department colours could drift apart and show a team in one colour on the
 // schedule and another in the analytics.
 
-// Locations are shown in this order; anything unknown is appended alphabetically.
-const LOCATION_ORDER = ['Bangna Office', 'Factory 1', 'Factory 2', 'Factory 3'];
+// The order the sites are shown in. Filled from /api/config on load, because
+// the order belongs to the room catalog on the server (src/db/roomCatalog.js).
+// It used to be a second copy of that list here, which is a copy that gets
+// forgotten the first time a site is renamed — and both names were renamed.
+let LOCATION_ORDER = [];
+
+function setLocationOrder(list) {
+  if (Array.isArray(list)) LOCATION_ORDER = list;
+}
 
 // Bookings are coloured by department so the same team reads the same colour
 // everywhere (schedule, legend, analytics). One entry per department in
@@ -97,6 +104,8 @@ function colorForDept(department) {
 }
 
 // Takes anything with a .location, so it works on both rooms and per-room stats.
+// A site not in the catalog order — one that was renamed, whose old bookings are
+// still in the analytics — goes after the known ones rather than among them.
 function sortedLocations(list) {
   const seen = [...new Set(list.map((r) => r.location || 'Other'))];
   const known = LOCATION_ORDER.filter((l) => seen.includes(l));

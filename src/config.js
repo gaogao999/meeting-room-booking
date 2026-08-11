@@ -21,7 +21,7 @@ function toList(value) {
 
 const config = {
   version: pkg.version,
-  port: toInt(process.env.PORT, 3000),
+  port: toInt(process.env.PORT, 3011),
   // false | true | a hop count — see src/server.js
   trustProxy: process.env.TRUST_PROXY
     ? Number.isFinite(parseInt(process.env.TRUST_PROXY, 10))

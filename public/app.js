@@ -1039,6 +1039,7 @@ async function init() {
   try {
     const [cfg, user] = await Promise.all([api('/api/config'), api('/api/auth/me')]);
     state.config = cfg;
+    setLocationOrder(cfg.locations);
     DAY_START = cfg.businessStartHour * 60;
     DAY_END = cfg.businessEndHour * 60;
     SPAN = DAY_END - DAY_START;

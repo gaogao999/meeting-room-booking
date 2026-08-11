@@ -61,7 +61,7 @@ npm install
 
 ```
 DATABASE_URL="sqlserver://localhost:1433;database=MeetingRoomBooking;user=sa;password=Str0ng!Passw0rd;encrypt=true;trustServerCertificate=true"
-PORT=3000
+PORT=3011
 AUTH_MODE=mock
 ```
 
@@ -72,7 +72,7 @@ npm run db:deploy
 TZ=Asia/Bangkok npm start
 ```
 
-http://localhost:3000 を開く。ここまでで予約機能はすべて動く。
+http://localhost:3011 を開く。ここまでで予約機能はすべて動く。
 参加者の欄に人を足すと、**サンプルの予定**が表示される（画面に黄色い帯で
 「サンプルです」と出る）。
 
@@ -161,7 +161,7 @@ Mac の IP を調べて（システム設定 → ネットワーク、`192.168.x
 同じ Wi-Fi のスマホや別の PC から開く。
 
 ```
-http://192.168.x.x:3000
+http://192.168.x.x:3011
 ```
 
 確認すること:

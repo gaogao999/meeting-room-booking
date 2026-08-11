@@ -200,7 +200,10 @@ async function load() {
   if (from) q.set('from', from);
   if (to) q.set('to', to);
   try {
-    const d = await api('/api/stats?' + q.toString());
+    // The site order comes from the room catalog on the server; fetched
+    // alongside the figures so the grouping here matches the schedule page.
+    const [d, cfg] = await Promise.all([api('/api/stats?' + q.toString()), api('/api/config')]);
+    setLocationOrder(cfg.locations);
     lastData = d;
     document.getElementById('from').value = d.from;
     document.getElementById('to').value = d.to;

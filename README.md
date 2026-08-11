@@ -3,7 +3,7 @@
 Web app for booking company meeting rooms. Pick a date and time and only the rooms
 free for that slot show up; the whole company's schedule is visible on a timeline.
 
-Current version: v2.3.1. UI is in English.
+Current version: v2.4.0. UI is in English.
 
 The version shown in the app header comes from `package.json`, so bump it there
 when releasing — it's how you confirm which build is actually deployed.
@@ -66,7 +66,7 @@ npm run db:deploy         # create/upgrade the tables
 npm start
 ```
 
-Then open http://localhost:3000 — the meeting rooms are registered automatically
+Then open http://localhost:3011 — the meeting rooms are registered automatically
 on first start. `npm run dev` restarts on file changes.
 
 Either `npm run db:deploy` or `npm run db:push` leaves the database complete —
@@ -95,10 +95,10 @@ Currently:
 
 | Location | Rooms |
 | --- | --- |
-| Bangna Office | Meeting room 1 / Meeting room 2 / Meeting room 3 |
-| Factory 1 | Conference room 1 / Conference room 2 / Meeting space 1 / Meeting space 2 / Meeting space 3 |
-| Factory 2 | Conference room 1 / Meeting room 1 / Meeting room 2 / Meeting room 3 |
-| Factory 3 | Conference room 1 |
+| Bang Na | Training Room / Meeting Room1 / Conference Room / Meeting Room 2 / Meeting Room 3 / Meeting Room 4 |
+| Amata F1 | Conference Room 1st / Gust Room 2nd / Small meeting |
+| Amata F2 | Conference Room / Meeting Room1 / Meeting Room2 / Meeting Room3 |
+| Amata F3 | Meeting Room1 / Meeting Room2 |
 
 To change them, edit the catalog and deploy. On startup the database is
 reconciled against the list: new entries are added, capacity/description changes
@@ -109,14 +109,20 @@ says what changed (`Rooms added: …`, `Rooms disabled: …`).
 
 Rooms are identified by name + location, so renaming one is treated as removing
 the old and adding a new one — the old room's bookings stay under the old name.
-Names only need to be unique within a location, which is why "Conference room 1"
-can exist in both factories.
+Names only need to be unique within a location, which is why "Conference Room"
+can exist at both Bang Na and Amata F2.
+
+The order in the catalog is the order on screen — sites down the page, rooms
+within a site — and `/api/config` hands that order to the browser so the
+schedule and the analytics group the same way. It is deliberately not
+alphabetical: that would put Amata F1 above the head office, and "Meeting
+Room 2" above "Meeting Room1".
 
 ## Environment variables
 
 | Variable | Description | Default |
 | --- | --- | --- |
-| `PORT` | Listen port | 3000 |
+| `PORT` | Listen port | 3011 |
 | `NODE_ENV` | Read by Express itself, not by this app's config | development |
 | `DATABASE_URL` | SQL Server connection string — required | — |
 | `AUTH_MODE` | `mock` (no login) or `checklogin` | mock |
