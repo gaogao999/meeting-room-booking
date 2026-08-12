@@ -7,7 +7,7 @@ async function loadRooms() {
 
     if (rooms.length === 0) {
       tbody.innerHTML =
-        '<tr><td colspan="5" class="text-center text-muted py-4">No rooms configured</td></tr>';
+        '<tr><td colspan="6" class="text-center text-muted py-4">No rooms configured</td></tr>';
       return;
     }
 
@@ -24,6 +24,11 @@ async function loadRooms() {
             ? '<span class="badge bg-success-subtle text-success-emphasis">Available</span>'
             : '<span class="badge bg-secondary">Disabled</span>'
         }</td>
+        <td>${
+          r.is_active
+            ? `<a class="btn btn-sm btn-outline-secondary" href="/display.html?room=${r.id}" target="_blank" rel="noopener">Open</a>`
+            : ''
+        }</td>
       </tr>`
       )
       .join('');
@@ -35,7 +40,7 @@ async function loadRooms() {
         : `${active} available, ${rooms.length - active} disabled`;
   } catch (err) {
     tbody.innerHTML =
-      `<tr><td colspan="5" class="text-danger text-center py-4">${escapeHtml(err.message)}</td></tr>`;
+      `<tr><td colspan="6" class="text-danger text-center py-4">${escapeHtml(err.message)}</td></tr>`;
   }
 }
 

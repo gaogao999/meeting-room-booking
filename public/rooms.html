@@ -39,15 +39,22 @@
                 <th class="text-end">Capacity</th>
                 <th>Description</th>
                 <th>Status</th>
+                <th>Door display</th>
               </tr>
             </thead>
             <tbody id="roomList">
-              <tr><td colspan="5" class="text-center text-muted py-4">Loading...</td></tr>
+              <tr><td colspan="6" class="text-center text-muted py-4">Loading...</td></tr>
             </tbody>
           </table>
         </div>
       </div>
     </div>
+    <p class="panel-sub mt-2 mb-0">
+      <strong>Door display</strong> opens a full-screen page for that one room — what is on now,
+      what is next, and the rest of the day — meant for a tablet or spare monitor by the door. It
+      needs nothing but a browser on the office network: open the link on the device, add it to the
+      home screen, and set the screen never to sleep.
+    </p>
     <p class="panel-sub mt-2 mb-0">
       Rooms come from the application configuration (<code>src/db/roomCatalog.js</code>) and are
       applied on deploy, so they can't be added or changed from this screen. A room removed from
