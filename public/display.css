@@ -26,6 +26,14 @@
   box-sizing: border-box;
 }
 
+/* Every block on this page is laid out with flex or grid, and a class that sets
+   `display` beats the browser's own rule for the hidden attribute — so hiding
+   something by setting .hidden in script silently did nothing, and an empty
+   "Next" box sat on the screen with no booking in it. */
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   height: 100%;
