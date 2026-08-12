@@ -34,6 +34,15 @@ when releasing — it's how you confirm which build is actually deployed.
   server-side needs the company mail server and so needs IT, while this needs
   nothing, goes out from the person's own address, and leaves a copy in their
   Sent items. A `mailto:` cannot carry an attachment, hence the link.
+- A door-side display at `/display.html?room=<id>` — one room, full screen: in use
+  or free, by whom, until when, and what is coming next. Meant for a tablet or a
+  spare monitor by the door, and it needs nothing but a browser: no licence, no
+  certified hardware. (The commercial products in this category work the same
+  way — Skedda does not sell panels either.) Every room links to its own from the
+  Rooms page. It polls once a minute, and when it loses the server it keeps
+  showing what it last knew and marks itself `not updating` rather than blanking
+  — a door sign showing an error page tells a visitor the company's systems are
+  down.
 - A line across the grid marks the current minute, on the hour ruler and down
   every row, and the grid redraws once a minute so a screen left open all
   morning stays honest. It also answers the walk-up case — somebody in the
@@ -251,6 +260,12 @@ your own calendar appears on the schedule without anyone typing anything. Callin
 the existing `/checklogin` directly is still to be written, in
 `src/middleware/auth.js`. The frontend already handles both, keyed off the `mode`
 returned by `/api/auth/me`, so turning login on is a server-side change only.
+
+Headers cannot be typed into a browser, so `scripts/mock-login-proxy.js` stands in
+for that login on a laptop: run the app with `AUTH_MODE=checklogin`, run the proxy,
+and open it instead of the app. It can pretend to be any of three people, one of
+whom deliberately has no mailbox. It is a rehearsal tool — it trusts a cookie
+anyone could set — and is never deployed.
 
 Until then anyone on the network can book as anyone, and the department-based
 booking window is effectively self-declared. That is a deliberate trade: it

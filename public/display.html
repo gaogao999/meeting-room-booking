@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- No zooming: this is a sign, not a page to read up close. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Room display</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link href="/display.css" rel="stylesheet" />
+  <!-- Android and iOS both take this as "run without browser chrome" once the
+       page is added to the home screen, which is how a tablet by a door should
+       show it: no address bar, no tabs, nothing to tap by accident. -->
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#0b3d91" />
+</head>
+<body>
+  <!-- Which room this screen belongs to, chosen once when the tablet is set up.
+       Shown only when the address has no ?room=, so a screen already set up
+       never comes back to it. -->
+  <div class="picker" id="picker" hidden>
+    <h1>Which room is this screen outside?</h1>
+    <p>Tap the room. The address bar will then remember it — add the page to the
+      tablet's home screen and it opens straight into that room.</p>
+    <div class="picker-list" id="pickerList"></div>
+  </div>
+
+  <main class="panel" id="panel" hidden>
+    <header class="d-head">
+      <div>
+        <h1 class="d-room" id="roomName"></h1>
+        <div class="d-loc" id="roomLoc"></div>
+      </div>
+      <div class="d-clock">
+        <div class="d-time" id="clock"></div>
+        <div class="d-date" id="dateLabel"></div>
+      </div>
+    </header>
+
+    <!-- The one thing that has to be readable from across the corridor. -->
+    <section class="d-status" id="status">
+      <div class="d-state" id="stateText"></div>
+      <div class="d-detail" id="stateDetail"></div>
+      <div class="d-who" id="stateWho"></div>
+    </section>
+
+    <section class="d-next" id="next" hidden>
+      <span class="d-next-lbl">Next</span>
+      <span class="d-next-time" id="nextTime"></span>
+      <span class="d-next-what" id="nextWhat"></span>
+    </section>
+
+    <section class="d-rest" id="rest"></section>
+
+    <footer class="d-foot">
+      <span id="footNote"></span>
+      <!-- Lit only when the screen has lost the server. A door sign showing an
+           error page tells a visitor the company's systems are down; a small
+           mark tells the office the same thing without saying it out loud. -->
+      <span class="d-stale" id="stale" hidden>not updating</span>
+    </footer>
+  </main>
+
+  <script src="/common.js"></script>
+  <script src="/display.js"></script>
+</body>
+</html>

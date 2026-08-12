@@ -1,0 +1,268 @@
+/* The door-side display: one room, today, meant to be read standing up and from
+ * a few metres away. Runs full screen on whatever is to hand — a tablet by the
+ * door, a spare monitor, a phone propped up — so every size is set in vmin and
+ * clamp() rather than in pixels, and the layout is the same in portrait and
+ * landscape.
+ *
+ * Light background on purpose. A dark panel looks smarter in a photograph, but
+ * these corridors are lit by fluorescent tubes and a dark screen becomes a
+ * mirror. The colour that has to carry is the status band.
+ */
+
+:root {
+  --ink: #16202b;
+  --ink-2: #49535e;
+  --ink-3: #7a848f;
+  --line: #dbe1e8;
+  --free: #157347;
+  --free-bg: #e9f5ed;
+  --busy: #b02a24;
+  --busy-bg: #fbeceb;
+  --soon: #9a5b06;
+  --soon-bg: #fdf2e2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Every block on this page is laid out with flex or grid, and a class that sets
+   `display` beats the browser's own rule for the hidden attribute — so hiding
+   something by setting .hidden in script silently did nothing, and an empty
+   "Next" box sat on the screen with no booking in it. */
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: #fff;
+  color: var(--ink);
+  /* Nothing on this screen is meant to be selected, dragged or long-pressed. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+}
+
+.panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(12px, 3vmin, 34px);
+  gap: clamp(8px, 1.6vmin, 18px);
+}
+
+/* ---- head: which room, and the time ---- */
+.d-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 2px solid var(--line);
+  padding-bottom: clamp(6px, 1.4vmin, 16px);
+}
+.d-room {
+  margin: 0;
+  font-size: clamp(26px, 6.4vmin, 76px);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+}
+.d-loc {
+  font-size: clamp(13px, 2.4vmin, 28px);
+  color: var(--ink-3);
+  font-weight: 600;
+  margin-top: 0.2em;
+}
+.d-clock {
+  text-align: right;
+  flex: 0 0 auto;
+}
+.d-time {
+  font-size: clamp(28px, 7vmin, 84px);
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.d-date {
+  font-size: clamp(11px, 2vmin, 24px);
+  color: var(--ink-3);
+  font-weight: 600;
+}
+
+/* ---- the status band: the bit that reads from across the corridor ---- */
+.d-status {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(4px, 1vmin, 12px);
+  border-radius: clamp(10px, 2vmin, 22px);
+  padding: clamp(12px, 3vmin, 40px);
+  background: var(--free-bg);
+  color: var(--free);
+}
+.d-status.is-busy {
+  background: var(--busy-bg);
+  color: var(--busy);
+}
+/* Free, but not for long — worth a different colour from "free all afternoon",
+   because someone about to take the room for an hour cannot. */
+.d-status.is-soon {
+  background: var(--soon-bg);
+  color: var(--soon);
+}
+.d-state {
+  font-size: clamp(38px, 11vmin, 132px);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.d-detail {
+  font-size: clamp(16px, 3.4vmin, 40px);
+  font-weight: 700;
+  color: var(--ink);
+  /* Two lines at most, then cut: a meeting title nobody shortened must not
+     push the room name and the clock off a 10-inch screen. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.d-who {
+  font-size: clamp(13px, 2.4vmin, 28px);
+  color: var(--ink-2);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- what is coming ---- */
+.d-next {
+  display: flex;
+  align-items: baseline;
+  gap: clamp(8px, 1.6vmin, 18px);
+  font-size: clamp(14px, 2.6vmin, 32px);
+  border: 2px solid var(--line);
+  border-radius: clamp(8px, 1.6vmin, 16px);
+  padding: clamp(7px, 1.6vmin, 18px) clamp(10px, 2vmin, 22px);
+}
+.d-next-lbl {
+  font-size: 0.62em;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.d-next-time {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.d-next-what {
+  color: var(--ink-2);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ---- the rest of the day, small ---- */
+.d-rest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(5px, 1vmin, 10px);
+  font-size: clamp(11px, 1.9vmin, 22px);
+  color: var(--ink-2);
+  max-height: 22vmin;
+  overflow: hidden;
+}
+.d-rest .item {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.25em 0.85em;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.d-rest .item b {
+  font-variant-numeric: tabular-nums;
+}
+
+.d-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: clamp(10px, 1.6vmin, 18px);
+  color: var(--ink-3);
+}
+.d-stale {
+  margin-left: auto;
+  font-weight: 700;
+  color: var(--busy);
+}
+.d-stale::before {
+  content: '';
+  display: inline-block;
+  width: 0.6em;
+  height: 0.6em;
+  border-radius: 50%;
+  background: var(--busy);
+  margin-right: 0.45em;
+}
+
+/* ---- first-run: choose the room ---- */
+.picker {
+  padding: clamp(16px, 4vmin, 40px);
+  height: 100%;
+  overflow: auto;
+  user-select: auto;
+}
+.picker h1 {
+  font-size: clamp(20px, 3.4vmin, 34px);
+  margin: 0 0 0.3em;
+}
+.picker p {
+  color: var(--ink-2);
+  max-width: 44em;
+  font-size: clamp(13px, 1.9vmin, 18px);
+  margin: 0 0 1.4em;
+}
+.picker-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 10px;
+}
+.picker-list .loc {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-top: 10px;
+}
+.picker-list a {
+  display: block;
+  /* A finger, not a mouse: nothing here is smaller than a fingertip. */
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+  background: #fff;
+}
+.picker-list a:active {
+  background: #eef3f9;
+}
