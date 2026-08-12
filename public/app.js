@@ -39,12 +39,10 @@ const state = {
   fbError: null,
   // Set while changing an existing booking rather than making a new one.
   editing: null,
-  // How long the "free right now" strip is looking ahead for, in minutes.
-  freeNowMins: 30,
 };
 
-// Recompute "now" this often, so the current-time line and the free-now strip
-// do not go stale on a screen left open all morning.
+// Recompute "now" this often, so the current-time line does not go stale on a
+// screen left open all morning.
 const NOW_TICK_MS = 60 * 1000;
 
 let detailModal = null;
@@ -670,11 +668,15 @@ async function submitBooking(ev) {
 
 // ---- Right now -------------------------------------------------------------
 //
-// Someone standing in the corridor wanting a room for the next half hour should
-// not have to fill in a form to find out which ones are free. This is the case
-// Outlook handles worst and this screen handles best, so it gets the top of the
-// page — but only while looking at today, because "now" means nothing on any
-// other day.
+// Where "now" falls in the day. Both are read by the schedule, which draws the
+// line marking this minute and re-draws it as the day moves on.
+//
+// There used to be a strip above the grid listing the rooms free from now. It
+// went: the line answers the same question, and answers it better. Everything
+// to the right of the line is the rest of the day, and a room free at this
+// moment is a dashed cell the line is passing through — which also shows how
+// long it stays free, and can be clicked to book it. The strip could only say
+// "free", and with fifteen rooms mostly free it listed nearly all of them.
 
 function nowMinutes() {
   const d = new Date();
@@ -683,91 +685,6 @@ function nowMinutes() {
 
 function isToday() {
   return state.date === todayStr();
-}
-
-// For each room the schedule is showing: is it free from now, and until when.
-// `bookings` is the same per-room map the timeline draws from, so this costs
-// nothing extra and can never disagree with the grid below it.
-function freeNowRooms(bookingsByRoom) {
-  const slot = state.config.slotMinutes;
-  const from = Math.max(DAY_START, Math.ceil(nowMinutes() / slot) * slot);
-  if (from >= DAY_END) return { from, rooms: [] };
-
-  const rooms = [];
-  for (const room of visibleRooms()) {
-    let until = DAY_END;
-    for (const b of bookingsByRoom[room.id] || []) {
-      const s = minutesOfDay(b.start_at, state.date);
-      const e = minutesOfDay(b.end_at, state.date);
-      if (s == null || e == null) continue;
-      if (e <= from) continue;
-      // Busy at this very moment — not free, whatever comes later.
-      if (s <= from) { until = from; break; }
-      until = Math.min(until, s);
-    }
-    if (until - from >= state.freeNowMins) rooms.push({ room, until });
-  }
-  return { from, rooms };
-}
-
-function renderFreeNow(bookingsByRoom) {
-  const box = document.getElementById('freeNow');
-  if (!isToday() || nowMinutes() >= DAY_END) {
-    box.hidden = true;
-    return;
-  }
-  const { from, rooms } = freeNowRooms(bookingsByRoom);
-  box.hidden = false;
-
-  const choices = [30, 60, 120];
-  document.getElementById('freeNowDurs').innerHTML = choices
-    .map(
-      (m) =>
-        `<button type="button" class="fn-dur${state.freeNowMins === m ? ' active' : ''}"` +
-        ` data-mins="${m}">${durText(m)}</button>`
-    )
-    .join('');
-
-  const list = document.getElementById('freeNowList');
-  if (!rooms.length) {
-    list.innerHTML =
-      `<span class="fn-none">Nothing free for ${durText(state.freeNowMins)} from ${fmtMin(from)}.</span>`;
-    return;
-  }
-  // One chip per room on a single line: the name, where it is, and the end
-  // time only when there is one. "Free all day" was on every second chip and
-  // said nothing — the grid underneath shows the whole day anyway, and this
-  // strip is only meant to answer "which room, right now".
-  list.innerHTML = rooms
-    .map(({ room, until }) => {
-      const facts = roomFacts(room);
-      return (
-        `<button type="button" class="fn-room" data-room="${room.id}" data-from="${from}"` +
-        ` title="${escapeHtml(`Book ${room.name} from ${fmtMin(from)}`)}">` +
-        `<span class="fn-name">${escapeHtml(room.name)}</span>` +
-        `<span class="fn-meta">${escapeHtml(room.location || '')}${
-          facts ? ' · ' + escapeHtml(facts) : ''
-        }</span>` +
-        (until >= DAY_END ? '' : `<span class="fn-free">until ${fmtMin(until)}</span>`) +
-        '</button>'
-      );
-    })
-    .join('');
-}
-
-// Take one of those rooms: today, from the next slot boundary, for the length
-// the strip is currently showing.
-function bookFromNow(roomId, from) {
-  const end = Math.min(DAY_END, from + state.freeNowMins);
-  document.getElementById('date').value = state.date;
-  document.getElementById('startHour').value = Math.floor(from / 60);
-  document.getElementById('startMin').value = from % 60;
-  document.getElementById('endHour').value = Math.floor(end / 60);
-  syncEndMinutes();
-  document.getElementById('endMin').value = end % 60;
-  state.selectedRoom = +roomId;
-  findRooms(roomId).then(loadTimeline);
-  document.getElementById('bookingForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ---- Timeline ----
@@ -1043,7 +960,6 @@ async function loadTimeline() {
     const byRoom = {};
     for (const b of list) (byRoom[b.room_id] = byRoom[b.room_id] || []).push(b);
     state.byRoom = byRoom;
-    renderFreeNow(byRoom);
     renderTimeline(byRoom);
   } catch (err) {
     document.getElementById('timeline').innerHTML =
@@ -1457,18 +1373,6 @@ async function init() {
     findRooms();
   });
 
-  // "Free right now": pick a length, or take a room straight from the strip.
-  document.getElementById('freeNowDurs').addEventListener('click', (e) => {
-    const btn = e.target.closest('.fn-dur');
-    if (!btn) return;
-    state.freeNowMins = +btn.getAttribute('data-mins');
-    renderFreeNow(state.byRoom || {});
-  });
-  document.getElementById('freeNowList').addEventListener('click', (e) => {
-    const btn = e.target.closest('.fn-room');
-    if (btn) bookFromNow(btn.getAttribute('data-room'), +btn.getAttribute('data-from'));
-  });
-
   // Your own bookings
   myModal = new bootstrap.Modal(document.getElementById('myModal'));
   document.getElementById('myBookingsBtn').addEventListener('click', () => {
@@ -1598,13 +1502,10 @@ async function init() {
 
     fillTimeControls();
     updateRuleHint();
-    // The line marking now, and what is free from now, both go stale on a
-    // screen nobody has touched since the morning.
+    // The line marking now goes stale on a screen nobody has touched since the
+    // morning, so the grid redraws itself once a minute.
     setInterval(() => {
-      if (isToday()) {
-        renderFreeNow(state.byRoom || {});
-        renderTimeline(state.byRoom || {});
-      }
+      if (isToday()) renderTimeline(state.byRoom || {});
     }, NOW_TICK_MS);
     state.participants = loadParticipants();
     renderParticipants();

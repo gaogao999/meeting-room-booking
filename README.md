@@ -34,12 +34,13 @@ when releasing — it's how you confirm which build is actually deployed.
   server-side needs the company mail server and so needs IT, while this needs
   nothing, goes out from the person's own address, and leaves a copy in their
   Sent items. A `mailto:` cannot carry an attachment, hence the link.
-- `Free right now` — the top of the schedule lists the rooms free from this
-  minute and for how long, for 30 minutes / 1 hour / 2 hours. One click fills the
-  form in with that room and time. This is the walk-up case: somebody in the
-  corridor who needs a room now, which is the thing Outlook handles worst.
-- A line across the grid marks the current minute, and both it and the free-now
-  list refresh every minute so a screen left open all morning stays honest.
+- A line across the grid marks the current minute, on the hour ruler and down
+  every row, and the grid redraws once a minute so a screen left open all
+  morning stays honest. It also answers the walk-up case — somebody in the
+  corridor who needs a room now: the dashed cells the line passes through are
+  the rooms that are free, how far they run is how long they stay free, and
+  clicking one books it. A separate "free right now" strip above the grid was
+  tried and removed; it said less than the line, in more space.
 - `My bookings` lists everything this browser has booked that has not happened
   yet — the only way to find one without knowing its date, since bookings are
   identified by device rather than by login. Each can be changed, cancelled, or
@@ -71,9 +72,9 @@ when releasing — it's how you confirm which build is actually deployed.
   default), enforced server-side too, not just in the form.
 - A booking may start in the slot currently in progress. "No bookings in the
   past" counts from the top of that slot rather than from this second, because
-  taking a room from `Free right now` at 13:29 offers 13:30 and filling the form
-  in used to push it into the past — a refusal for something the user did
-  nothing wrong in.
+  clicking the slot the current-time line is standing in at 13:29 offers 13:30
+  and filling the form in used to push it into the past — a refusal for
+  something the user did nothing wrong in.
 
 ## Tech stack
 

@@ -1,6 +1,6 @@
 {
   "name": "meeting-room-booking",
-  "version": "2.7.1",
+  "version": "2.8.0",
   "description": "Book the company's meeting rooms",
   "main": "src/server.js",
   "type": "commonjs",
