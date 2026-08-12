@@ -165,16 +165,9 @@
           </div>
 
           <div class="fb-note" id="fbNote" hidden></div>
-          <!-- The walk-up case: someone needs a room now and does not want to
-               fill in a form to find out which. Only shown while looking at
-               today, since "now" means nothing on another day. -->
-          <div class="freenow" id="freeNow" hidden>
-            <div class="fn-head">
-              <span class="fn-title">Free right now</span>
-              <div class="fn-durs" id="freeNowDurs"></div>
-            </div>
-            <div class="fn-list" id="freeNowList"></div>
-          </div>
+          <!-- The walk-up case — "I need a room now" — is answered by the line
+               marking this minute in the grid below: the dashed cells it passes
+               through are the rooms that are free, and clicking one books it. -->
           <div id="timeline" class="timeline"></div>
           <p class="panel-foot panel-sub mb-0" id="tlRangeNote"></p>
         </div>
